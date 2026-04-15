@@ -1,0 +1,33 @@
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/
+!default.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+.swiftpm/
+.netrc
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# IDE
+.vscode/
+.idea/
+
+# xcodegen-generated Info.plist (generated from project.yml properties)
+SupportingFiles/Info.plist
+
+# User secrets (should be in Keychain anyway, but just in case)
+*.env
+secrets.json

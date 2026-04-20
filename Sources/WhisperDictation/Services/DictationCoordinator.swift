@@ -8,6 +8,7 @@ final class DictationCoordinator: ObservableObject {
     private let hotkeyManager = HotkeyManager()
     private let recorder = AudioRecorder()
     private let history = TranscriptionHistory.shared
+    private let overlay = CursorOverlay()
 
     private var settingsStore: SettingsStore?
     private var appState: AppState?
@@ -57,9 +58,11 @@ final class DictationCoordinator: ObservableObject {
             do {
                 _ = try recorder.start()
                 appState.status = .recording
+                overlay.show(status: .recording)
                 playSoundIfEnabled(.begin)
             } catch {
                 appState.status = .error(error.localizedDescription)
+                overlay.hide()
                 showAlert(title: "Aufnahme-Fehler", body: error.localizedDescription)
                 resetToIdleAfterDelay()
             }
@@ -69,10 +72,12 @@ final class DictationCoordinator: ObservableObject {
     private func stopAndProcess() {
         guard let appState, let settingsStore else { return }
         guard let url = recorder.stop() else {
+            overlay.hide()
             appState.status = .idle
             return
         }
         appState.status = .transcribing
+        overlay.updateStatus(.transcribing)
         playSoundIfEnabled(.end)
 
         let model = settingsStore.whisperModel.rawValue
@@ -99,6 +104,7 @@ final class DictationCoordinator: ObservableObject {
 
                 if llmEnabled, let preset, !preset.instruction.isEmpty {
                     appState.status = .processing
+                    overlay.updateStatus(.processing)
                     let llm = GroqLLMService(apiKey: apiKey)
                     final = try await llm.process(text: raw, instruction: preset.instruction, model: llmModel)
                     presetName = preset.name
@@ -108,11 +114,13 @@ final class DictationCoordinator: ObservableObject {
 
                 appState.lastTranscription = final
                 history.add(HistoryEntry(rawText: raw, processedText: final, presetName: presetName))
+                overlay.hide()
                 TextInjector.inject(final, mode: outputMode)
 
                 appState.status = .idle
             } catch {
                 appState.status = .error(error.localizedDescription)
+                overlay.hide()
                 showAlert(title: "Transkription fehlgeschlagen", body: error.localizedDescription)
                 resetToIdleAfterDelay()
             }

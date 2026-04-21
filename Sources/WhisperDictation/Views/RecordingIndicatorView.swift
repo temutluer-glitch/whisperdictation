@@ -22,11 +22,8 @@ struct RecordingIndicatorView: View {
     private var content: some View {
         switch status {
         case .recording:
-            HStack(spacing: 8) {
-                PulseDot()
-                BarsWaveformView(recorder: recorder)
-                    .frame(width: 64, height: 20)
-            }
+            BarsWaveformView(recorder: recorder)
+                .frame(width: 64, height: 20)
         case .transcribing, .processing:
             HStack(spacing: 8) {
                 ProgressView()
@@ -56,20 +53,6 @@ struct RecordingIndicatorView: View {
         case .processing: return "Verarbeite…"
         default: return ""
         }
-    }
-}
-
-private struct PulseDot: View {
-    @State private var pulse = false
-
-    var body: some View {
-        Circle()
-            .fill(Color.red)
-            .frame(width: 7, height: 7)
-            .scaleEffect(pulse ? 1.0 : 0.7)
-            .opacity(pulse ? 1.0 : 0.6)
-            .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: pulse)
-            .onAppear { pulse = true }
     }
 }
 
@@ -136,7 +119,7 @@ struct BarsWaveformView: View {
     @StateObject private var animator = WaveformAnimator(
         barCount: 18,
         attackTime: 0.013,
-        releaseTime: 0.033
+        releaseTime: 0.008
     )
 
     var body: some View {
@@ -159,9 +142,7 @@ struct BarsWaveformView: View {
 
         for i in 0..<min(barCount, history.count) {
             let value = history[i]
-            let envelope = sin((CGFloat(i) + 0.5) / CGFloat(barCount) * .pi)
-            let magnitude = value * envelope
-            let height = max(minBarHeight, magnitude * maxBarHeight)
+            let height = max(minBarHeight, value * maxBarHeight)
             let x = CGFloat(i) * (barWidth + spacing)
             let rect = CGRect(
                 x: x,

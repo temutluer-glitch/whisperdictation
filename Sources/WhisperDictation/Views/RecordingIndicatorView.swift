@@ -22,11 +22,8 @@ struct RecordingIndicatorView: View {
     private var content: some View {
         switch status {
         case .recording:
-            HStack(spacing: 8) {
-                PulseDot()
-                BarsWaveformView(level: recorder.currentLevel)
-                    .frame(width: 96, height: 20)
-            }
+            BarsWaveformView(recorder: recorder)
+                .frame(width: 96, height: 20)
         case .transcribing, .processing:
             HStack(spacing: 8) {
                 ProgressView()
@@ -59,69 +56,87 @@ struct RecordingIndicatorView: View {
     }
 }
 
-private struct PulseDot: View {
-    @State private var pulse = false
+@MainActor
+final class WaveformAnimator: ObservableObject {
+    @Published private(set) var bars: [CGFloat]
 
-    var body: some View {
-        Circle()
-            .fill(Color.red)
-            .frame(width: 7, height: 7)
-            .scaleEffect(pulse ? 1.0 : 0.7)
-            .opacity(pulse ? 1.0 : 0.6)
-            .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: pulse)
-            .onAppear { pulse = true }
+    private let barCount: Int
+    private var smoothLevel: CGFloat = 0
+    private var timer: Timer?
+    private weak var recorder: AudioRecorder?
+    private var lastTick = Date()
+
+    init(barCount: Int) {
+        self.barCount = barCount
+        self.bars = Array(repeating: 0, count: barCount)
+    }
+
+    func start(recorder: AudioRecorder) {
+        stop()
+        self.recorder = recorder
+        self.lastTick = Date()
+        self.smoothLevel = 0
+        self.bars = Array(repeating: 0, count: barCount)
+        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.tick() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+        recorder = nil
+    }
+
+    private func tick() {
+        guard let recorder else { return }
+        let now = Date()
+        let dt = max(0.001, now.timeIntervalSince(lastTick))
+        lastTick = now
+
+        let target = CGFloat(recorder.currentLevel)
+        let attackTau: CGFloat = 0.03
+        let releaseTau: CGFloat = 0.12
+        let tau = target > smoothLevel ? attackTau : releaseTau
+        let coeff = 1.0 - exp(-CGFloat(dt) / tau)
+        smoothLevel += (target - smoothLevel) * coeff
+        if smoothLevel < 0.015 { smoothLevel = 0 }
+
+        var next = bars
+        next.removeFirst()
+        next.append(smoothLevel)
+        bars = next
     }
 }
 
 struct BarsWaveformView: View {
-    let level: Float
+    @ObservedObject var recorder: AudioRecorder
+    @StateObject private var animator = WaveformAnimator(barCount: 10)
 
-    private let barCount = 18
     private let maxBarHeight: CGFloat = 18
     private let minBarHeight: CGFloat = 2.5
 
-    @State private var history: [CGFloat]
-    @State private var smoothLevel: CGFloat = 0
-    @State private var lastTick: Date = Date()
-
-    init(level: Float) {
-        self.level = level
-        _history = State(initialValue: Array(repeating: 0, count: 18))
-    }
-
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
-            Canvas { context, size in
-                advance(to: timeline.date)
-                draw(into: &context, size: size)
-            }
+        Canvas { context, size in
+            draw(into: &context, size: size, bars: animator.bars)
         }
+        .onAppear { animator.start(recorder: recorder) }
+        .onDisappear { animator.stop() }
     }
 
-    private func advance(to now: Date) {
-        let dt = max(0.001, now.timeIntervalSince(lastTick))
-        lastTick = now
-
-        let target = CGFloat(level)
-        let attack: CGFloat = 1.0 - exp(-CGFloat(dt) / 0.04)
-        let release: CGFloat = 1.0 - exp(-CGFloat(dt) / 0.10)
-        let coeff = target > smoothLevel ? attack : release
-        smoothLevel += (target - smoothLevel) * coeff
-        if smoothLevel < 0.02 { smoothLevel = 0 }
-
-        history.removeFirst()
-        history.append(smoothLevel)
-    }
-
-    private func draw(into context: inout GraphicsContext, size: CGSize) {
-        let spacing: CGFloat = 2
-        let totalSpacing = spacing * CGFloat(barCount - 1)
-        let barWidth = max(2, (size.width - totalSpacing) / CGFloat(barCount))
+    private func draw(into context: inout GraphicsContext, size: CGSize, bars: [CGFloat]) {
+        let count = bars.count
+        guard count > 0 else { return }
+        let spacing: CGFloat = 3
+        let totalSpacing = spacing * CGFloat(count - 1)
+        let barWidth = max(2, (size.width - totalSpacing) / CGFloat(count))
         let midY = size.height / 2
 
-        for i in 0..<barCount {
-            let value = history[i]
-            let envelope = sin((CGFloat(i) + 0.5) / CGFloat(barCount) * .pi)
+        for i in 0..<count {
+            let value = bars[i]
+            let envelope = sin((CGFloat(i) + 0.5) / CGFloat(count) * .pi)
             let magnitude = value * envelope
             let height = max(minBarHeight, magnitude * maxBarHeight)
             let x = CGFloat(i) * (barWidth + spacing)

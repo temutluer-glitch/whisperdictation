@@ -5,22 +5,30 @@ import Carbon.HIToolbox
 enum TextInjector {
     static func inject(_ text: String, mode: OutputMode) {
         let pasteboard = NSPasteboard.general
+        let trusted = AXIsProcessTrusted()
+        let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+        NSLog("WD:inject mode=\(mode.rawValue) axTrusted=\(trusted) frontApp=\(frontBundle) length=\(text.count)")
 
         if mode == .clipboardOnly {
             pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
+            let ok = pasteboard.setString(text, forType: .string)
+            NSLog("WD:inject clipboardOnly setString=\(ok)")
             return
         }
 
         let snapshot = snapshotPasteboard(pasteboard)
 
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        let setOk = pasteboard.setString(text, forType: .string)
+        let readBack = pasteboard.string(forType: .string) ?? ""
+        NSLog("WD:inject setString=\(setOk) clipboardNow=\"\(readBack.prefix(40))\"")
 
         simulateCmdV()
+        NSLog("WD:inject simulateCmdV posted")
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             restorePasteboard(pasteboard, snapshot: snapshot)
+            NSLog("WD:inject snapshot restored")
         }
     }
 

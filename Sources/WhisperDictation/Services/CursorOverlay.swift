@@ -11,7 +11,7 @@ final class CursorOverlay {
 
     func show(status: DictationStatus, recorder: AudioRecorder) {
         self.recorder = recorder
-        let position = elementTopCenter() ?? cursorScreenPosition() ?? fallbackPosition()
+        let position = cursorScreenPosition() ?? elementTopCenter() ?? fallbackPosition()
         anchorPoint = position
 
         let view = RecordingIndicatorView(status: status, recorder: recorder)
@@ -82,7 +82,7 @@ final class CursorOverlay {
             ?? NSScreen.main
         if let frame = screen?.visibleFrame {
             x = min(max(x, frame.minX + 4), frame.maxX - size.width - 4)
-            if y + size.height > frame.maxY { y = anchor.y - size.height - 6 }
+            if y + size.height > frame.maxY { y = frame.maxY - size.height - 4 }
             if y < frame.minY { y = frame.minY + 4 }
         }
         panel.setFrameOrigin(NSPoint(x: x, y: y))

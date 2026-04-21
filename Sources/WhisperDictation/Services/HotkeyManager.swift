@@ -4,74 +4,84 @@ import HotKey
 
 @MainActor
 final class HotkeyManager {
-    private var hotKey: HotKey?
+    private var hotKeys: [UUID: HotKey] = [:]
+    private var bindings: [UUID: HotkeyBinding] = [:]
     private var flagsMonitor: Any?
-    private var isKeyDown = false
-    private var currentMode: HotkeyMode = .holdToTalk
-    private var requiredModifiers: NSEvent.ModifierFlags = []
+    private var pressedBindingID: UUID?
+    private var pressedRequiredModifiers: NSEvent.ModifierFlags = []
 
-    var onPress: (() -> Void)?
-    var onRelease: (() -> Void)?
+    var onPress: ((UUID) -> Void)?
+    var onRelease: ((UUID) -> Void)?
 
-    func register(config: HotkeyConfig, mode: HotkeyMode) {
-        unregister()
-        guard let key = config.hotKeyKey else {
-            NSLog("HotkeyManager: invalid key code \(config.keyCode)")
-            return
+    func register(bindings: [HotkeyBinding]) {
+        unregisterAll()
+
+        for binding in bindings {
+            register(binding: binding)
         }
 
-        currentMode = mode
-        requiredModifiers = config.nsEventModifiers
-
-        let hk = HotKey(key: key, modifiers: requiredModifiers)
-        hk.keyDownHandler = { [weak self] in
-            Task { @MainActor in
-                self?.handleKeyDown()
-            }
-        }
-        self.hotKey = hk
-
-        if mode == .holdToTalk && !requiredModifiers.isEmpty {
-            flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-                Task { @MainActor in
-                    self?.handleFlagsChanged(event: event)
-                }
-            }
+        flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            Task { @MainActor in self?.handleFlagsChanged(event: event) }
         }
     }
 
-    func unregister() {
-        hotKey = nil
+    func unregisterAll() {
+        hotKeys.removeAll()
+        bindings.removeAll()
         if let monitor = flagsMonitor {
             NSEvent.removeMonitor(monitor)
         }
         flagsMonitor = nil
-        isKeyDown = false
+        pressedBindingID = nil
+        pressedRequiredModifiers = []
     }
 
-    private func handleKeyDown() {
-        switch currentMode {
+    private func register(binding: HotkeyBinding) {
+        guard let key = binding.config.hotKeyKey else {
+            NSLog("HotkeyManager: invalid key code \(binding.config.keyCode)")
+            return
+        }
+        let modifiers = binding.config.nsEventModifiers
+        let hk = HotKey(key: key, modifiers: modifiers)
+        let id = binding.id
+        hk.keyDownHandler = { [weak self] in
+            Task { @MainActor in
+                self?.handleKeyDown(bindingID: id)
+            }
+        }
+        hotKeys[id] = hk
+        bindings[id] = binding
+    }
+
+    private func handleKeyDown(bindingID: UUID) {
+        guard let binding = bindings[bindingID] else { return }
+        switch binding.mode {
         case .holdToTalk:
-            guard !isKeyDown else { return }
-            isKeyDown = true
-            onPress?()
+            guard pressedBindingID == nil else { return }
+            pressedBindingID = bindingID
+            pressedRequiredModifiers = binding.config.nsEventModifiers
+            onPress?(bindingID)
         case .toggle:
-            if isKeyDown {
-                isKeyDown = false
-                onRelease?()
-            } else {
-                isKeyDown = true
-                onPress?()
+            if pressedBindingID == bindingID {
+                pressedBindingID = nil
+                onRelease?(bindingID)
+            } else if pressedBindingID == nil {
+                pressedBindingID = bindingID
+                onPress?(bindingID)
             }
         }
     }
 
     private func handleFlagsChanged(event: NSEvent) {
-        guard isKeyDown, currentMode == .holdToTalk else { return }
+        guard let id = pressedBindingID,
+              let binding = bindings[id],
+              binding.mode == .holdToTalk else { return }
+
         let current = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if !current.isSuperset(of: requiredModifiers) {
-            isKeyDown = false
-            onRelease?()
+        if !current.isSuperset(of: pressedRequiredModifiers) {
+            pressedBindingID = nil
+            pressedRequiredModifiers = []
+            onRelease?(id)
         }
     }
 }

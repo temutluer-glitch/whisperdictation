@@ -17,6 +17,20 @@ enum HotkeyMode: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+struct HotkeyBinding: Codable, Identifiable, Equatable {
+    var id: UUID
+    var presetID: UUID
+    var config: HotkeyConfig
+    var mode: HotkeyMode
+
+    init(id: UUID = UUID(), presetID: UUID, config: HotkeyConfig, mode: HotkeyMode = .holdToTalk) {
+        self.id = id
+        self.presetID = presetID
+        self.config = config
+        self.mode = mode
+    }
+}
+
 enum WhisperModel: String, Codable, CaseIterable, Identifiable {
     case largeV3Turbo = "whisper-large-v3-turbo"
     case largeV3 = "whisper-large-v3"

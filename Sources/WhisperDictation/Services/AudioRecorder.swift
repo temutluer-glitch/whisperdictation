@@ -1,9 +1,16 @@
 import Foundation
 import AVFoundation
+import Combine
 
-final class AudioRecorder: NSObject, AVAudioRecorderDelegate {
+@MainActor
+final class AudioRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
+    @Published var currentLevel: Float = 0
+
     private var recorder: AVAudioRecorder?
     private var currentURL: URL?
+    private var meterTimer: Timer?
+    private(set) var startTime: Date?
+    private(set) var maxLevelDb: Float = -160
 
     enum RecorderError: LocalizedError {
         case permissionDenied
@@ -42,34 +49,78 @@ final class AudioRecorder: NSObject, AVAudioRecorderDelegate {
         do {
             let recorder = try AVAudioRecorder(url: url, settings: settings)
             recorder.delegate = self
+            recorder.isMeteringEnabled = true
             recorder.prepareToRecord()
             if !recorder.record() {
                 throw RecorderError.recordingFailed("record() returned false")
             }
             self.recorder = recorder
             self.currentURL = url
+            self.startTime = Date()
+            self.maxLevelDb = -160
+            self.currentLevel = 0
+            startMetering()
             return url
         } catch {
             throw RecorderError.recordingFailed(error.localizedDescription)
         }
     }
 
-    func stop() -> URL? {
-        guard let recorder = recorder else { return nil }
+    struct StopResult {
+        let url: URL
+        let durationSeconds: TimeInterval
+        let maxLevelDb: Float
+    }
+
+    func stop() -> StopResult? {
+        guard let recorder = recorder, let url = currentURL else { return nil }
+        let duration = startTime.map { Date().timeIntervalSince($0) } ?? 0
         recorder.stop()
-        let url = currentURL
+        stopMetering()
+        let maxDb = maxLevelDb
         self.recorder = nil
         self.currentURL = nil
-        return url
+        self.startTime = nil
+        self.currentLevel = 0
+        return StopResult(url: url, durationSeconds: duration, maxLevelDb: maxDb)
     }
 
     func cancel() {
         recorder?.stop()
+        stopMetering()
         if let url = currentURL {
             try? FileManager.default.removeItem(at: url)
         }
         recorder = nil
         currentURL = nil
+        startTime = nil
+        currentLevel = 0
+    }
+
+    private func startMetering() {
+        meterTimer?.invalidate()
+        meterTimer = Timer.scheduledTimer(withTimeInterval: 0.04, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.tick() }
+        }
+        if let timer = meterTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
+    private func stopMetering() {
+        meterTimer?.invalidate()
+        meterTimer = nil
+    }
+
+    private func tick() {
+        guard let recorder = recorder else { return }
+        recorder.updateMeters()
+        let avg = recorder.averagePower(forChannel: 0)
+        let peak = recorder.peakPower(forChannel: 0)
+        let db = max(avg, peak - 6)
+        if db > maxLevelDb { maxLevelDb = db }
+        let normalized = max(0, min(1, (db + 50) / 50))
+        currentLevel = normalized
     }
 
     private func makeTempURL() -> URL {

@@ -6,28 +6,21 @@ struct LLMPromptsSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Toggle("LLM-Postprocessing aktivieren", isOn: $settings.llmEnabled)
+            Text("Prompt-Presets")
                 .font(.headline)
 
+            Text("Jedes Preset ist eine LLM-Anweisung, die nach der Transkription auf den Text angewendet wird. Verbinde Presets im 'Hotkey'-Tab mit Tastenkombinationen. 'Raw' (leeres Preset) gibt den unveränderten Text zurück.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             HStack {
-                Text("Model:")
+                Text("LLM-Modell:")
                 TextField("Groq Model ID", text: $settings.llmModel)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 280)
                 Link("Modelle", destination: URL(string: "https://console.groq.com/docs/models")!)
                     .font(.caption)
-            }
-
-            HStack {
-                Text("Aktives Preset:")
-                Picker("", selection: $settings.activePresetID) {
-                    ForEach(settings.llmPresets) { preset in
-                        Text(preset.name).tag(Optional(preset.id))
-                    }
-                }
-                .labelsHidden()
-                .frame(maxWidth: 220)
-                Spacer()
             }
 
             Divider()
@@ -45,12 +38,14 @@ struct LLMPromptsSettingsView: View {
                 Button("Löschen", role: .destructive) { deletePreset() }
                     .disabled(selectedPreset == nil || selectedPreset?.id == PromptPreset.raw.id)
                 Spacer()
-                Button("Auf Defaults zurücksetzen") { settings.llmPresets = PromptPreset.defaults }
+                Button("Auf Defaults zurücksetzen") {
+                    settings.llmPresets = PromptPreset.defaults
+                }
             }
         }
         .padding()
         .onAppear {
-            if selectedID == nil { selectedID = settings.activePresetID ?? settings.llmPresets.first?.id }
+            if selectedID == nil { selectedID = settings.llmPresets.first?.id }
         }
     }
 
@@ -59,8 +54,10 @@ struct LLMPromptsSettingsView: View {
             HStack {
                 Text(preset.name)
                 Spacer()
-                if preset.id == settings.activePresetID {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint)
+                if preset.instruction.isEmpty {
+                    Text("Raw")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
             }
             .tag(Optional(preset.id))
@@ -76,9 +73,8 @@ struct LLMPromptsSettingsView: View {
                     set: { settings.llmPresets[idx].name = $0 }
                 ))
                 .textFieldStyle(.roundedBorder)
-                .disabled(preset.id == PromptPreset.raw.id)
 
-                Text("Instruction (System-Prompt)")
+                Text("Instruction (System-Prompt). Leer = Raw, kein LLM-Aufruf.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 TextEditor(text: Binding(
@@ -88,7 +84,6 @@ struct LLMPromptsSettingsView: View {
                 .font(.system(.body, design: .monospaced))
                 .frame(minHeight: 180)
                 .border(Color.secondary.opacity(0.3))
-                .disabled(preset.id == PromptPreset.raw.id)
             } else {
                 Text("Wähle links ein Preset oder erstelle ein neues.")
                     .foregroundStyle(.secondary)
@@ -122,7 +117,7 @@ struct LLMPromptsSettingsView: View {
     private func deletePreset() {
         guard let id = selectedID else { return }
         settings.llmPresets.removeAll { $0.id == id }
-        if settings.activePresetID == id { settings.activePresetID = PromptPreset.raw.id }
+        settings.hotkeyBindings.removeAll { $0.presetID == id }
         selectedID = settings.llmPresets.first?.id
     }
 }

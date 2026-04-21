@@ -6,23 +6,31 @@ import ApplicationServices
 final class CursorOverlay {
     private var panel: NSPanel?
     private var hostingView: NSHostingView<RecordingIndicatorView>?
+    private var anchorPoint: NSPoint?
+    private weak var recorder: AudioRecorder?
 
-    func show(status: DictationStatus) {
-        let position = cursorScreenPosition() ?? fallbackPosition()
+    func show(status: DictationStatus, recorder: AudioRecorder) {
+        self.recorder = recorder
+        let position = elementTopCenter() ?? cursorScreenPosition() ?? fallbackPosition()
+        anchorPoint = position
 
-        if let panel {
-            hostingView?.rootView = RecordingIndicatorView(status: status)
-            repositionPanel(panel, at: position)
-            panel.orderFrontRegardless()
+        let view = RecordingIndicatorView(status: status, recorder: recorder)
+        let hosting = NSHostingView(rootView: view)
+        hosting.frame = NSRect(x: 0, y: 0, width: 160, height: 36)
+
+        if let existing = panel {
+            existing.contentView = hosting
+            self.hostingView = hosting
+            let size = hosting.fittingSize
+            existing.setContentSize(size)
+            hosting.frame = NSRect(origin: .zero, size: size)
+            reposition(panel: existing)
+            existing.orderFrontRegardless()
             return
         }
 
-        let indicator = RecordingIndicatorView(status: status)
-        let hosting = NSHostingView(rootView: indicator)
-        hosting.frame = NSRect(x: 0, y: 0, width: 150, height: 30)
-
         let p = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 150, height: 30),
+            contentRect: NSRect(x: 0, y: 0, width: 160, height: 36),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -31,15 +39,16 @@ final class CursorOverlay {
         p.backgroundColor = .clear
         p.hasShadow = false
         p.level = .floating
-        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         p.hidesOnDeactivate = false
+        p.ignoresMouseEvents = true
         p.contentView = hosting
 
-        let fittingSize = hosting.fittingSize
-        p.setContentSize(fittingSize)
-        hosting.frame = NSRect(origin: .zero, size: fittingSize)
+        let size = hosting.fittingSize
+        p.setContentSize(size)
+        hosting.frame = NSRect(origin: .zero, size: size)
 
-        repositionPanel(p, at: position)
+        reposition(panel: p)
         p.orderFrontRegardless()
 
         self.panel = p
@@ -47,108 +56,109 @@ final class CursorOverlay {
     }
 
     func updateStatus(_ status: DictationStatus) {
-        guard let hostingView else { return }
-        hostingView.rootView = RecordingIndicatorView(status: status)
-        let fittingSize = hostingView.fittingSize
-        panel?.setContentSize(fittingSize)
-        hostingView.frame = NSRect(origin: .zero, size: fittingSize)
+        guard let hostingView, let recorder else { return }
+        hostingView.rootView = RecordingIndicatorView(status: status, recorder: recorder)
+        let size = hostingView.fittingSize
+        panel?.setContentSize(size)
+        hostingView.frame = NSRect(origin: .zero, size: size)
+        if let panel { reposition(panel: panel) }
     }
 
     func hide() {
         panel?.orderOut(nil)
         panel = nil
         hostingView = nil
+        anchorPoint = nil
+        recorder = nil
     }
 
-    private func repositionPanel(_ panel: NSPanel, at cursorPos: NSPoint) {
-        let fittingSize = hostingView?.fittingSize ?? NSSize(width: 150, height: 30)
-        let x = cursorPos.x
-        let y = cursorPos.y - fittingSize.height - 4
+    private func reposition(panel: NSPanel) {
+        guard let anchor = anchorPoint else { return }
+        let size = hostingView?.fittingSize ?? NSSize(width: 160, height: 36)
+        var x = anchor.x - size.width / 2
+        var y = anchor.y + 6
 
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(cursorPos) })
-                ?? NSScreen.main else {
-            panel.setFrameOrigin(NSPoint(x: x, y: y))
-            return
+        let screen = NSScreen.screens.first(where: { $0.frame.contains(anchor) })
+            ?? NSScreen.main
+        if let frame = screen?.visibleFrame {
+            x = min(max(x, frame.minX + 4), frame.maxX - size.width - 4)
+            if y + size.height > frame.maxY { y = anchor.y - size.height - 6 }
+            if y < frame.minY { y = frame.minY + 4 }
         }
-
-        let screenFrame = screen.visibleFrame
-        let clampedX = min(max(x, screenFrame.minX), screenFrame.maxX - fittingSize.width)
-        let clampedY: CGFloat
-        if y < screenFrame.minY {
-            clampedY = cursorPos.y + 20
-        } else {
-            clampedY = y
-        }
-
-        panel.setFrameOrigin(NSPoint(x: clampedX, y: clampedY))
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
-    private func cursorScreenPosition() -> NSPoint? {
-        let systemWide = AXUIElementCreateSystemWide()
+    private func elementTopCenter() -> NSPoint? {
+        guard let element = focusedElement() else { return nil }
 
-        var focusedAppValue: AnyObject?
-        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &focusedAppValue) == .success else {
-            return nil
-        }
-        let focusedApp = focusedAppValue as! AXUIElement
-
-        var focusedElementValue: AnyObject?
-        guard AXUIElementCopyAttributeValue(focusedApp, kAXFocusedUIElementAttribute as CFString, &focusedElementValue) == .success else {
-            return nil
-        }
-        let focusedElement = focusedElementValue as! AXUIElement
-
-        var selectedRangeValue: AnyObject?
-        guard AXUIElementCopyAttributeValue(focusedElement, kAXSelectedTextRangeAttribute as CFString, &selectedRangeValue) == .success else {
-            return insertionPointFromElement(focusedElement)
-        }
-
-        var boundsValue: AnyObject?
-        guard AXUIElementCopyParameterizedAttributeValue(
-            focusedElement,
-            kAXBoundsForRangeParameterizedAttribute as CFString,
-            selectedRangeValue!,
-            &boundsValue
-        ) == .success else {
-            return insertionPointFromElement(focusedElement)
-        }
-
-        var axBounds = CGRect.zero
-        guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &axBounds) else {
-            return insertionPointFromElement(focusedElement)
-        }
-
-        let screenPoint = convertAXToScreenCoordinates(axBounds)
-        return screenPoint
-    }
-
-    private func insertionPointFromElement(_ element: AXUIElement) -> NSPoint? {
         var posValue: AnyObject?
         var sizeValue: AnyObject?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &posValue) == .success,
               AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success else {
             return nil
         }
+
         var pos = CGPoint.zero
         var size = CGSize.zero
         AXValueGetValue(posValue as! AXValue, .cgPoint, &pos)
         AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
 
-        let axRect = CGRect(origin: pos, size: CGSize(width: 0, height: size.height))
-        return convertAXToScreenCoordinates(axRect)
+        if size.width <= 0 || size.height <= 0 { return nil }
+
+        let topCenterAX = CGPoint(x: pos.x + size.width / 2, y: pos.y)
+        return convertAXToScreenCoordinates(topCenterAX)
     }
 
-    private func convertAXToScreenCoordinates(_ axRect: CGRect) -> NSPoint {
+    private func cursorScreenPosition() -> NSPoint? {
+        guard let element = focusedElement() else { return nil }
+
+        var rangeValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeValue) == .success else {
+            return nil
+        }
+
+        var boundsValue: AnyObject?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element,
+            kAXBoundsForRangeParameterizedAttribute as CFString,
+            rangeValue!,
+            &boundsValue
+        ) == .success else {
+            return nil
+        }
+
+        var rect = CGRect.zero
+        guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect) else {
+            return nil
+        }
+
+        let topCenter = CGPoint(x: rect.midX, y: rect.minY)
+        return convertAXToScreenCoordinates(topCenter)
+    }
+
+    private func focusedElement() -> AXUIElement? {
+        let systemWide = AXUIElementCreateSystemWide()
+        var focusedAppValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &focusedAppValue) == .success else {
+            return nil
+        }
+        var focusedElementValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(focusedAppValue as! AXUIElement, kAXFocusedUIElementAttribute as CFString, &focusedElementValue) == .success else {
+            return nil
+        }
+        return (focusedElementValue as! AXUIElement)
+    }
+
+    private func convertAXToScreenCoordinates(_ point: CGPoint) -> NSPoint {
         guard let primaryScreen = NSScreen.screens.first else {
-            return NSPoint(x: axRect.origin.x, y: axRect.origin.y)
+            return NSPoint(x: point.x, y: point.y)
         }
         let primaryHeight = primaryScreen.frame.height
-        let nsY = primaryHeight - axRect.origin.y - axRect.height
-        return NSPoint(x: axRect.origin.x, y: nsY)
+        return NSPoint(x: point.x, y: primaryHeight - point.y)
     }
 
     private func fallbackPosition() -> NSPoint {
         let mouseLocation = NSEvent.mouseLocation
-        return NSPoint(x: mouseLocation.x, y: mouseLocation.y - 30)
+        return NSPoint(x: mouseLocation.x, y: mouseLocation.y - 60)
     }
 }

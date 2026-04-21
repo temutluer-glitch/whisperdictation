@@ -6,48 +6,68 @@ import Combine
 @MainActor
 final class DictationCoordinator: ObservableObject {
     private let hotkeyManager = HotkeyManager()
-    private let recorder = AudioRecorder()
+    let recorder = AudioRecorder()
     private let history = TranscriptionHistory.shared
     private let overlay = CursorOverlay()
 
     private var settingsStore: SettingsStore?
     private var appState: AppState?
     private var cancellables = Set<AnyCancellable>()
+    private var activeBindingID: UUID?
+
+    private static let hallucinationPhrases: Set<String> = [
+        "thank you", "thank you.", "thanks", "thanks.", "thanks for watching",
+        "thanks for watching.", "thanks for watching!", "thank you for watching",
+        "thank you for watching.", "thank you very much", "thank you very much.",
+        "you", "you.", "...", ".", "danke", "danke.", "vielen dank", "vielen dank.",
+        "tschüss", "tschüss.", "bye", "bye.", "untertitel der amara.org-community",
+        "untertitelung des zdf für funk, 2017", "untertitelung aufgrund der amara.org-community",
+        "untertitel im auftrag des zdf, 2020", "untertitel im auftrag des zdf, 2017",
+        "untertitel im auftrag des zdf für funk, 2017",
+        "amara.org community", "♪♪", "music", "[music]"
+    ]
 
     func attach(settingsStore: SettingsStore, appState: AppState) {
         self.settingsStore = settingsStore
         self.appState = appState
 
-        hotkeyManager.onPress = { [weak self] in self?.startRecording() }
-        hotkeyManager.onRelease = { [weak self] in self?.stopAndProcess() }
+        hotkeyManager.onPress = { [weak self] bindingID in
+            self?.startRecording(bindingID: bindingID)
+        }
+        hotkeyManager.onRelease = { [weak self] bindingID in
+            self?.stopAndProcess(bindingID: bindingID)
+        }
 
-        reregisterHotkey()
+        reregisterBindings()
 
-        settingsStore.$hotkeyConfig
-            .combineLatest(settingsStore.$hotkeyMode)
-            .sink { [weak self] _, _ in
-                Task { @MainActor in self?.reregisterHotkey() }
+        settingsStore.$hotkeyBindings
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.reregisterBindings() }
             }
             .store(in: &cancellables)
     }
 
-    private func reregisterHotkey() {
+    private func reregisterBindings() {
         guard let settingsStore else { return }
-        hotkeyManager.register(config: settingsStore.hotkeyConfig, mode: settingsStore.hotkeyMode)
+        hotkeyManager.register(bindings: settingsStore.hotkeyBindings)
     }
 
     func toggleRecording() {
-        guard let appState else { return }
+        guard let appState, let settingsStore else { return }
         if appState.isRecording {
-            stopAndProcess()
-        } else {
-            startRecording()
+            if let id = activeBindingID {
+                stopAndProcess(bindingID: id)
+            }
+        } else if let defaultBinding = settingsStore.defaultBinding {
+            startRecording(bindingID: defaultBinding.id)
         }
     }
 
-    private func startRecording() {
+    private func startRecording(bindingID: UUID) {
         guard let appState else { return }
         guard !appState.isRecording else { return }
+
+        activeBindingID = bindingID
 
         Task {
             let status = AVCaptureDevice.authorizationStatus(for: .audio)
@@ -58,7 +78,7 @@ final class DictationCoordinator: ObservableObject {
             do {
                 _ = try recorder.start()
                 appState.status = .recording
-                overlay.show(status: .recording)
+                overlay.show(status: .recording, recorder: recorder)
                 playSoundIfEnabled(.begin)
             } catch {
                 appState.status = .error(error.localizedDescription)
@@ -69,13 +89,24 @@ final class DictationCoordinator: ObservableObject {
         }
     }
 
-    private func stopAndProcess() {
+    private func stopAndProcess(bindingID: UUID) {
         guard let appState, let settingsStore else { return }
-        guard let url = recorder.stop() else {
+
+        guard let stopResult = recorder.stop() else {
             overlay.hide()
             appState.status = .idle
+            activeBindingID = nil
             return
         }
+
+        if stopResult.durationSeconds < 0.4 || stopResult.maxLevelDb < -42 {
+            try? FileManager.default.removeItem(at: stopResult.url)
+            overlay.hide()
+            appState.status = .idle
+            activeBindingID = nil
+            return
+        }
+
         appState.status = .transcribing
         overlay.updateStatus(.transcribing)
         playSoundIfEnabled(.end)
@@ -83,48 +114,64 @@ final class DictationCoordinator: ObservableObject {
         let model = settingsStore.whisperModel.rawValue
         let languageHint = settingsStore.languageHint
         let apiKey = settingsStore.groqAPIKey
-        let llmEnabled = settingsStore.llmEnabled
         let llmModel = settingsStore.llmModel
-        let preset = settingsStore.activePreset
         let outputMode = settingsStore.outputMode
+        let binding = settingsStore.binding(forID: bindingID) ?? settingsStore.defaultBinding
+        let preset = binding.flatMap { settingsStore.preset(for: $0) }
 
         Task {
             do {
                 let transcriber = GroqTranscriptionService(apiKey: apiKey)
                 let raw = try await transcriber.transcribe(
-                    fileURL: url,
+                    fileURL: stopResult.url,
                     model: model,
                     language: languageHint.isEmpty ? nil : languageHint
                 )
 
-                try? FileManager.default.removeItem(at: url)
+                try? FileManager.default.removeItem(at: stopResult.url)
 
-                var final = raw
-                var presetName: String? = nil
+                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                if Self.isLikelyHallucination(trimmed) {
+                    overlay.hide()
+                    appState.status = .idle
+                    activeBindingID = nil
+                    return
+                }
 
-                if llmEnabled, let preset, !preset.instruction.isEmpty {
+                var final = trimmed
+                var presetName: String? = preset?.name
+
+                if let preset, !preset.instruction.isEmpty {
                     appState.status = .processing
                     overlay.updateStatus(.processing)
                     let llm = GroqLLMService(apiKey: apiKey)
-                    final = try await llm.process(text: raw, instruction: preset.instruction, model: llmModel)
-                    presetName = preset.name
-                } else if let preset, preset.instruction.isEmpty {
-                    presetName = preset.name
+                    final = try await llm.process(text: trimmed, instruction: preset.instruction, model: llmModel)
                 }
 
                 appState.lastTranscription = final
-                history.add(HistoryEntry(rawText: raw, processedText: final, presetName: presetName))
+                history.add(HistoryEntry(rawText: trimmed, processedText: final, presetName: presetName))
                 overlay.hide()
                 TextInjector.inject(final, mode: outputMode)
 
                 appState.status = .idle
+                activeBindingID = nil
             } catch {
                 appState.status = .error(error.localizedDescription)
                 overlay.hide()
                 showAlert(title: "Transkription fehlgeschlagen", body: error.localizedDescription)
                 resetToIdleAfterDelay()
+                activeBindingID = nil
             }
         }
+    }
+
+    private static func isLikelyHallucination(_ text: String) -> Bool {
+        let normalized = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+        if normalized.isEmpty { return true }
+        if hallucinationPhrases.contains(normalized) { return true }
+        let collapsed = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if hallucinationPhrases.contains(collapsed) { return true }
+        return false
     }
 
     private func resetToIdleAfterDelay() {

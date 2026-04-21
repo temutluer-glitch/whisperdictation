@@ -5,8 +5,9 @@ import SwiftUI
 @MainActor
 final class SettingsStore: ObservableObject {
     private enum Key {
-        static let hotkeyConfig = "hotkeyConfig"
-        static let hotkeyMode = "hotkeyMode"
+        static let hotkeyBindings = "hotkeyBindings"
+        static let legacyHotkeyConfig = "hotkeyConfig"
+        static let legacyHotkeyMode = "hotkeyMode"
         static let whisperModel = "whisperModel"
         static let languageHint = "languageHint"
         static let outputMode = "outputMode"
@@ -15,16 +16,11 @@ final class SettingsStore: ObservableObject {
         static let llmEnabled = "llmEnabled"
         static let llmModel = "llmModel"
         static let llmPresets = "llmPresets"
-        static let activePresetID = "activePresetID"
         static let hasGroqKey = "hasGroqKey"
     }
 
-    @Published var hotkeyConfig: HotkeyConfig {
-        didSet { save(hotkeyConfig, key: Key.hotkeyConfig) }
-    }
-
-    @Published var hotkeyMode: HotkeyMode {
-        didSet { UserDefaults.standard.set(hotkeyMode.rawValue, forKey: Key.hotkeyMode) }
+    @Published var hotkeyBindings: [HotkeyBinding] {
+        didSet { save(hotkeyBindings, key: Key.hotkeyBindings) }
     }
 
     @Published var whisperModel: WhisperModel {
@@ -62,16 +58,6 @@ final class SettingsStore: ObservableObject {
         didSet { save(llmPresets, key: Key.llmPresets) }
     }
 
-    @Published var activePresetID: UUID? {
-        didSet {
-            if let id = activePresetID {
-                UserDefaults.standard.set(id.uuidString, forKey: Key.activePresetID)
-            } else {
-                UserDefaults.standard.removeObject(forKey: Key.activePresetID)
-            }
-        }
-    }
-
     @Published var groqAPIKey: String {
         didSet {
             KeychainStore.set(groqAPIKey, for: KeychainStore.Account.groqAPIKey)
@@ -79,22 +65,21 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    var activePreset: PromptPreset? {
-        guard let id = activePresetID else { return nil }
-        return llmPresets.first(where: { $0.id == id })
+    func preset(for binding: HotkeyBinding) -> PromptPreset? {
+        llmPresets.first(where: { $0.id == binding.presetID })
+    }
+
+    func binding(forID id: UUID) -> HotkeyBinding? {
+        hotkeyBindings.first(where: { $0.id == id })
+    }
+
+    var defaultBinding: HotkeyBinding? {
+        hotkeyBindings.first
     }
 
     init() {
         let defaults = UserDefaults.standard
 
-        if let data = defaults.data(forKey: Key.hotkeyConfig),
-           let decoded = try? JSONDecoder().decode(HotkeyConfig.self, from: data) {
-            self.hotkeyConfig = decoded
-        } else {
-            self.hotkeyConfig = .defaultConfig
-        }
-
-        self.hotkeyMode = HotkeyMode(rawValue: defaults.string(forKey: Key.hotkeyMode) ?? "") ?? .holdToTalk
         self.whisperModel = WhisperModel(rawValue: defaults.string(forKey: Key.whisperModel) ?? "") ?? .largeV3Turbo
         self.languageHint = defaults.string(forKey: Key.languageHint) ?? ""
         self.outputMode = OutputMode(rawValue: defaults.string(forKey: Key.outputMode) ?? "") ?? .pasteIntoActiveApp
@@ -103,19 +88,28 @@ final class SettingsStore: ObservableObject {
         self.llmEnabled = defaults.bool(forKey: Key.llmEnabled)
         self.llmModel = defaults.string(forKey: Key.llmModel) ?? "llama-3.3-70b-versatile"
 
+        let presets: [PromptPreset]
         if let data = defaults.data(forKey: Key.llmPresets),
            let decoded = try? JSONDecoder().decode([PromptPreset].self, from: data),
            !decoded.isEmpty {
-            self.llmPresets = decoded
+            presets = decoded
         } else {
-            self.llmPresets = PromptPreset.defaults
+            presets = PromptPreset.defaults
         }
+        self.llmPresets = presets
 
-        if let idString = defaults.string(forKey: Key.activePresetID),
-           let uuid = UUID(uuidString: idString) {
-            self.activePresetID = uuid
+        if let data = defaults.data(forKey: Key.hotkeyBindings),
+           let decoded = try? JSONDecoder().decode([HotkeyBinding].self, from: data),
+           !decoded.isEmpty {
+            self.hotkeyBindings = decoded
+        } else if let legacyData = defaults.data(forKey: Key.legacyHotkeyConfig),
+                  let legacyConfig = try? JSONDecoder().decode(HotkeyConfig.self, from: legacyData) {
+            let legacyMode = HotkeyMode(rawValue: defaults.string(forKey: Key.legacyHotkeyMode) ?? "") ?? .holdToTalk
+            let rawPreset = presets.first(where: { $0.name == PromptPreset.raw.name }) ?? presets[0]
+            self.hotkeyBindings = [HotkeyBinding(presetID: rawPreset.id, config: legacyConfig, mode: legacyMode)]
         } else {
-            self.activePresetID = PromptPreset.raw.id
+            let rawPreset = presets.first(where: { $0.name == PromptPreset.raw.name }) ?? presets[0]
+            self.hotkeyBindings = [HotkeyBinding(presetID: rawPreset.id, config: .defaultConfig, mode: .holdToTalk)]
         }
 
         self.groqAPIKey = KeychainStore.get(KeychainStore.Account.groqAPIKey) ?? ""

@@ -7,12 +7,12 @@ enum TextInjector {
         let pasteboard = NSPasteboard.general
         let trusted = AXIsProcessTrusted()
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
-        NSLog("WD:inject mode=\(mode.rawValue) axTrusted=\(trusted) frontApp=\(frontBundle) length=\(text.count)")
+        DebugLog.write("inject mode=\(mode.rawValue) axTrusted=\(trusted) frontApp=\(frontBundle) length=\(text.count)")
 
         if mode == .clipboardOnly {
             pasteboard.clearContents()
             let ok = pasteboard.setString(text, forType: .string)
-            NSLog("WD:inject clipboardOnly setString=\(ok)")
+            DebugLog.write("inject clipboardOnly setString=\(ok)")
             return
         }
 
@@ -21,14 +21,20 @@ enum TextInjector {
         pasteboard.clearContents()
         let setOk = pasteboard.setString(text, forType: .string)
         let readBack = pasteboard.string(forType: .string) ?? ""
-        NSLog("WD:inject setString=\(setOk) clipboardNow=\"\(readBack.prefix(40))\"")
+        DebugLog.write("inject setString=\(setOk) clipboardNow=\"\(readBack.prefix(40))\"")
 
-        simulateCmdV()
-        NSLog("WD:inject simulateCmdV posted")
+        let (downOk, upOk) = simulateCmdV()
+        DebugLog.write("inject simulateCmdV posted keyDown=\(downOk) keyUp=\(upOk)")
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            let afterFront = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+            let afterClip = pasteboard.string(forType: .string) ?? ""
+            DebugLog.write("inject +150ms frontApp=\(afterFront) clipboardNow=\"\(afterClip.prefix(40))\"")
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             restorePasteboard(pasteboard, snapshot: snapshot)
-            NSLog("WD:inject snapshot restored")
+            DebugLog.write("inject snapshot restored")
         }
     }
 
@@ -65,7 +71,8 @@ enum TextInjector {
         pasteboard.writeObjects(newItems)
     }
 
-    private static func simulateCmdV() {
+    @discardableResult
+    private static func simulateCmdV() -> (Bool, Bool) {
         let source = CGEventSource(stateID: .combinedSessionState)
         let vKey: CGKeyCode = CGKeyCode(kVK_ANSI_V)
 
@@ -76,6 +83,7 @@ enum TextInjector {
 
         keyDown?.post(tap: .cghidEventTap)
         keyUp?.post(tap: .cghidEventTap)
+        return (keyDown != nil, keyUp != nil)
     }
 }
 

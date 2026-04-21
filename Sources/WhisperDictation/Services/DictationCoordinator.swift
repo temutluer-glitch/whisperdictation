@@ -68,6 +68,8 @@ final class DictationCoordinator: ObservableObject {
         guard !appState.isRecording else { return }
 
         activeBindingID = bindingID
+        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+        DebugLog.write("hotkeyPress frontApp=\(front) binding=\(bindingID.uuidString.prefix(8))")
 
         Task {
             let status = AVCaptureDevice.authorizationStatus(for: .audio)
@@ -91,6 +93,9 @@ final class DictationCoordinator: ObservableObject {
 
     private func stopAndProcess(bindingID: UUID) {
         guard let appState, let settingsStore else { return }
+
+        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+        DebugLog.write("hotkeyRelease frontApp=\(front)")
 
         guard let stopResult = recorder.stop() else {
             overlay.hide()

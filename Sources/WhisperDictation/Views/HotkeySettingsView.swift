@@ -152,6 +152,7 @@ struct HotkeyCaptureField: NSViewRepresentable {
 
         deinit {
             if let m = monitor { NSEvent.removeMonitor(m) }
+            if let m = flagsMonitor { NSEvent.removeMonitor(m) }
         }
 
         func update(displayString: String) {
@@ -168,10 +169,14 @@ struct HotkeyCaptureField: NSViewRepresentable {
             }
         }
 
+        private var flagsMonitor: Any?
+        private var pendingModifier: ModifierKey?
+
         private func startCapture() {
             isCapturing = true
-            label.stringValue = "Drücke Tasten… (ESC = abbrechen)"
+            label.stringValue = "Tasten drücken… (ESC abbrechen)"
             layer?.borderColor = NSColor.controlAccentColor.cgColor
+            pendingModifier = nil
 
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
                 guard let self else { return event }
@@ -185,18 +190,36 @@ struct HotkeyCaptureField: NSViewRepresentable {
                 if f.contains(.option) { carbon |= UInt32(optionKey) }
                 if f.contains(.control) { carbon |= UInt32(controlKey) }
                 if f.contains(.shift) { carbon |= UInt32(shiftKey) }
-                let newConfig = HotkeyConfig(keyCode: UInt32(event.keyCode), modifierFlags: carbon)
+                let newConfig = HotkeyConfig(keyCode: UInt32(event.keyCode), modifierFlags: carbon, modifierOnly: nil)
                 self.onCapture?(newConfig)
                 self.label.stringValue = newConfig.displayString
                 self.stopCapture(restoreOriginal: false)
                 return nil
             }
+
+            flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged]) { [weak self] event in
+                guard let self, self.isCapturing else { return event }
+                let raw = UInt(event.modifierFlags.rawValue)
+                if let detected = ModifierKey.detect(from: raw) {
+                    self.pendingModifier = detected
+                    self.label.stringValue = "\(detected.shortSymbol) – loslassen bestätigt"
+                } else if let detected = self.pendingModifier {
+                    let newConfig = HotkeyConfig(keyCode: 0, modifierFlags: 0, modifierOnly: detected)
+                    self.onCapture?(newConfig)
+                    self.label.stringValue = newConfig.displayString
+                    self.stopCapture(restoreOriginal: false)
+                }
+                return event
+            }
         }
 
         private func stopCapture(restoreOriginal: Bool) {
             isCapturing = false
+            pendingModifier = nil
             if let m = monitor { NSEvent.removeMonitor(m) }
+            if let m = flagsMonitor { NSEvent.removeMonitor(m) }
             monitor = nil
+            flagsMonitor = nil
             layer?.borderColor = NSColor.separatorColor.cgColor
         }
     }

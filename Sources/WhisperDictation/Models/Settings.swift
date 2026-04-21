@@ -59,14 +59,101 @@ enum OutputMode: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum ModifierKey: String, Codable, CaseIterable, Identifiable {
+    case leftOption
+    case rightOption
+    case leftCommand
+    case rightCommand
+    case leftControl
+    case rightControl
+    case leftShift
+    case rightShift
+    case function
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .leftOption: return "Linke Option (⌥)"
+        case .rightOption: return "Rechte Option (⌥)"
+        case .leftCommand: return "Linke Command (⌘)"
+        case .rightCommand: return "Rechte Command (⌘)"
+        case .leftControl: return "Linker Control (⌃)"
+        case .rightControl: return "Rechter Control (⌃)"
+        case .leftShift: return "Linke Shift (⇧)"
+        case .rightShift: return "Rechte Shift (⇧)"
+        case .function: return "Fn-Taste"
+        }
+    }
+
+    var shortSymbol: String {
+        switch self {
+        case .leftOption: return "⌥ L"
+        case .rightOption: return "⌥ R"
+        case .leftCommand: return "⌘ L"
+        case .rightCommand: return "⌘ R"
+        case .leftControl: return "⌃ L"
+        case .rightControl: return "⌃ R"
+        case .leftShift: return "⇧ L"
+        case .rightShift: return "⇧ R"
+        case .function: return "fn"
+        }
+    }
+
+    var deviceMask: UInt {
+        switch self {
+        case .leftControl:   return 0x00000001
+        case .leftShift:     return 0x00000002
+        case .rightShift:    return 0x00000004
+        case .leftCommand:   return 0x00000008
+        case .rightCommand:  return 0x00000010
+        case .leftOption:    return 0x00000020
+        case .rightOption:   return 0x00000040
+        case .rightControl:  return 0x00002000
+        case .function:      return UInt(NSEvent.ModifierFlags.function.rawValue)
+        }
+    }
+
+    static func detect(from rawFlags: UInt) -> ModifierKey? {
+        for key in ModifierKey.allCases where key != .function {
+            if rawFlags & key.deviceMask != 0 { return key }
+        }
+        if rawFlags & ModifierKey.function.deviceMask != 0 { return .function }
+        return nil
+    }
+}
+
 struct HotkeyConfig: Codable, Equatable {
     var keyCode: UInt32
     var modifierFlags: UInt32
+    var modifierOnly: ModifierKey?
 
     static let defaultConfig = HotkeyConfig(
         keyCode: UInt32(kVK_Space),
-        modifierFlags: UInt32(optionKey)
+        modifierFlags: UInt32(optionKey),
+        modifierOnly: nil
     )
+
+    init(keyCode: UInt32, modifierFlags: UInt32, modifierOnly: ModifierKey? = nil) {
+        self.keyCode = keyCode
+        self.modifierFlags = modifierFlags
+        self.modifierOnly = modifierOnly
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case keyCode
+        case modifierFlags
+        case modifierOnly
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.keyCode = try c.decode(UInt32.self, forKey: .keyCode)
+        self.modifierFlags = try c.decode(UInt32.self, forKey: .modifierFlags)
+        self.modifierOnly = try c.decodeIfPresent(ModifierKey.self, forKey: .modifierOnly)
+    }
+
+    var isModifierOnly: Bool { modifierOnly != nil }
 
     var hotKeyKey: Key? {
         Key(carbonKeyCode: keyCode)
@@ -82,6 +169,9 @@ struct HotkeyConfig: Codable, Equatable {
     }
 
     var displayString: String {
+        if let modOnly = modifierOnly {
+            return modOnly.shortSymbol
+        }
         var parts: [String] = []
         if modifierFlags & UInt32(controlKey) != 0 { parts.append("⌃") }
         if modifierFlags & UInt32(optionKey) != 0 { parts.append("⌥") }

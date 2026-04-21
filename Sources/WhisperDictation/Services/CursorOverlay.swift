@@ -11,7 +11,7 @@ final class CursorOverlay {
 
     func show(status: DictationStatus, recorder: AudioRecorder) {
         self.recorder = recorder
-        let position = cursorScreenPosition() ?? elementTopCenter() ?? fallbackPosition()
+        let position = resolveAnchor()
         anchorPoint = position
 
         let view = RecordingIndicatorView(status: status, recorder: recorder)
@@ -159,6 +159,18 @@ final class CursorOverlay {
 
     private func fallbackPosition() -> NSPoint {
         let mouseLocation = NSEvent.mouseLocation
-        return NSPoint(x: mouseLocation.x, y: mouseLocation.y - 60)
+        return NSPoint(x: mouseLocation.x, y: mouseLocation.y + 14)
+    }
+
+    private func resolveAnchor() -> NSPoint {
+        if let p = cursorScreenPosition(), isPlausible(p) { return p }
+        if let p = elementTopCenter(), isPlausible(p) { return p }
+        return fallbackPosition()
+    }
+
+    private func isPlausible(_ p: NSPoint) -> Bool {
+        if p.x < 10 && p.y < 10 { return false }
+        if !p.x.isFinite || !p.y.isFinite { return false }
+        return NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(p) }
     }
 }

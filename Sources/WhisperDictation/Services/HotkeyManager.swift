@@ -9,6 +9,7 @@ final class HotkeyManager {
     private var flagsMonitor: Any?
     private var pressedBindingID: UUID?
     private var pressedRequiredModifiers: NSEvent.ModifierFlags = []
+    private var modifierOnlyHeld: Set<UUID> = []
 
     var onPress: ((UUID) -> Void)?
     var onRelease: ((UUID) -> Void)?
@@ -34,11 +35,18 @@ final class HotkeyManager {
         flagsMonitor = nil
         pressedBindingID = nil
         pressedRequiredModifiers = []
+        modifierOnlyHeld.removeAll()
     }
 
     private func register(binding: HotkeyBinding) {
+        bindings[binding.id] = binding
+
+        if binding.config.isModifierOnly {
+            return
+        }
+
         guard let key = binding.config.hotKeyKey else {
-            NSLog("HotkeyManager: invalid key code \(binding.config.keyCode)")
+            DebugLog.write("HotkeyManager invalid keyCode=\(binding.config.keyCode)")
             return
         }
         let modifiers = binding.config.nsEventModifiers
@@ -50,7 +58,6 @@ final class HotkeyManager {
             }
         }
         hotKeys[id] = hk
-        bindings[id] = binding
     }
 
     private func handleKeyDown(bindingID: UUID) {
@@ -73,9 +80,43 @@ final class HotkeyManager {
     }
 
     private func handleFlagsChanged(event: NSEvent) {
+        let rawFlags = UInt(event.modifierFlags.rawValue)
+
+        for binding in bindings.values {
+            guard let modOnly = binding.config.modifierOnly else { continue }
+            let mask = modOnly.deviceMask
+            let isPressed = (rawFlags & mask) != 0
+            let wasHeld = modifierOnlyHeld.contains(binding.id)
+
+            switch binding.mode {
+            case .holdToTalk:
+                if isPressed && !wasHeld {
+                    modifierOnlyHeld.insert(binding.id)
+                    onPress?(binding.id)
+                } else if !isPressed && wasHeld {
+                    modifierOnlyHeld.remove(binding.id)
+                    onRelease?(binding.id)
+                }
+            case .toggle:
+                if isPressed && !wasHeld {
+                    modifierOnlyHeld.insert(binding.id)
+                    if pressedBindingID == binding.id {
+                        pressedBindingID = nil
+                        onRelease?(binding.id)
+                    } else if pressedBindingID == nil {
+                        pressedBindingID = binding.id
+                        onPress?(binding.id)
+                    }
+                } else if !isPressed && wasHeld {
+                    modifierOnlyHeld.remove(binding.id)
+                }
+            }
+        }
+
         guard let id = pressedBindingID,
               let binding = bindings[id],
-              binding.mode == .holdToTalk else { return }
+              binding.mode == .holdToTalk,
+              !binding.config.isModifierOnly else { return }
 
         let current = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if !current.isSuperset(of: pressedRequiredModifiers) {

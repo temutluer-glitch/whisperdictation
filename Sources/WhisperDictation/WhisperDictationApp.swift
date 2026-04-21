@@ -43,6 +43,9 @@ struct WhisperDictationApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        let bundlePath = Bundle.main.bundlePath
+        let trusted = AXIsProcessTrusted()
+        DebugLog.write("launch bundlePath=\(bundlePath) axTrusted=\(trusted)")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             PermissionHelper.checkAccessibilityOnLaunch()
         }

@@ -62,8 +62,10 @@ final class WaveformAnimator: ObservableObject {
     private let barCount: Int
     private let attackTime: TimeInterval
     private let releaseTime: TimeInterval
+    private let retargetInterval: TimeInterval = 0.07
 
-    private var smoothLevel: CGFloat = 0
+    private var targets: [CGFloat]
+    private var retargetClock: TimeInterval = 0
     private var lastTick: Date = Date()
     private var timer: Timer?
 
@@ -72,11 +74,13 @@ final class WaveformAnimator: ObservableObject {
         self.attackTime = attackTime
         self.releaseTime = releaseTime
         self.bars = Array(repeating: 0, count: barCount)
+        self.targets = Array(repeating: 0, count: barCount)
     }
 
     func start(levelProvider: @escaping () -> Float) {
         stop()
         lastTick = Date()
+        retargetClock = retargetInterval
         let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             self?.tick(level: levelProvider())
         }
@@ -94,16 +98,25 @@ final class WaveformAnimator: ObservableObject {
         let dt = max(0.001, now.timeIntervalSince(lastTick))
         lastTick = now
 
-        let target = CGFloat(level)
+        let input = CGFloat(level)
+        retargetClock += dt
+        if retargetClock >= retargetInterval {
+            retargetClock = 0
+            for i in 0..<barCount {
+                targets[i] = input * CGFloat.random(in: 0.35...1.0)
+            }
+        }
+
         let attack: CGFloat = 1.0 - exp(-CGFloat(dt) / CGFloat(attackTime))
         let release: CGFloat = 1.0 - exp(-CGFloat(dt) / CGFloat(releaseTime))
-        let coeff = target > smoothLevel ? attack : release
-        smoothLevel += (target - smoothLevel) * coeff
-        if smoothLevel < 0.02 { smoothLevel = 0 }
 
         var next = bars
-        next.removeFirst()
-        next.append(smoothLevel)
+        for i in 0..<barCount {
+            let target = targets[i]
+            let coeff: CGFloat = target > next[i] ? attack : release
+            next[i] += (target - next[i]) * coeff
+            if next[i] < 0.02 { next[i] = 0 }
+        }
         bars = next
     }
 }
@@ -118,8 +131,8 @@ struct BarsWaveformView: View {
 
     @StateObject private var animator = WaveformAnimator(
         barCount: 18,
-        attackTime: 0.013,
-        releaseTime: 0.008
+        attackTime: 0.020,
+        releaseTime: 0.004
     )
 
     var body: some View {

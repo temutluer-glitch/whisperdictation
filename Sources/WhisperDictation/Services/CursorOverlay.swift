@@ -17,6 +17,9 @@ final class CursorOverlay {
         let view = RecordingIndicatorView(status: status, recorder: recorder)
         let hosting = NSHostingView(rootView: view)
         hosting.frame = NSRect(x: 0, y: 0, width: 160, height: 36)
+        hosting.wantsLayer = true
+        hosting.layer?.isOpaque = false
+        hosting.layer?.backgroundColor = CGColor.clear
 
         if let existing = panel {
             existing.contentView = hosting
@@ -103,7 +106,8 @@ final class CursorOverlay {
         AXValueGetValue(posValue as! AXValue, .cgPoint, &pos)
         AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
 
-        if size.width <= 0 || size.height <= 0 { return nil }
+        if size.width < 20 || size.height < 12 { return nil }
+        if size.width > 1600 || size.height > 900 { return nil }
 
         let topCenterAX = CGPoint(x: pos.x + size.width / 2, y: pos.y)
         return convertAXToScreenCoordinates(topCenterAX)
@@ -132,6 +136,9 @@ final class CursorOverlay {
             return nil
         }
 
+        if rect.height < 6 || rect.height > 200 { return nil }
+        if rect.origin.x == 0 && rect.origin.y == 0 { return nil }
+
         let topCenter = CGPoint(x: rect.midX, y: rect.minY)
         return convertAXToScreenCoordinates(topCenter)
     }
@@ -157,20 +164,37 @@ final class CursorOverlay {
         return NSPoint(x: point.x, y: primaryHeight - point.y)
     }
 
-    private func fallbackPosition() -> NSPoint {
-        let mouseLocation = NSEvent.mouseLocation
-        return NSPoint(x: mouseLocation.x, y: mouseLocation.y + 14)
+    private func mouseAnchor() -> NSPoint {
+        let m = NSEvent.mouseLocation
+        return NSPoint(x: m.x, y: m.y + 14)
     }
 
     private func resolveAnchor() -> NSPoint {
-        if let p = cursorScreenPosition(), isPlausible(p) { return p }
-        if let p = elementTopCenter(), isPlausible(p) { return p }
-        return fallbackPosition()
+        let mouse = NSEvent.mouseLocation
+        let maxDistance: CGFloat = 350
+
+        if let p = cursorScreenPosition(), isPlausible(p), distance(p, mouse) < maxDistance {
+            DebugLog.write("overlay anchor=caret p=\(Int(p.x)),\(Int(p.y)) mouse=\(Int(mouse.x)),\(Int(mouse.y))")
+            return p
+        }
+        if let p = elementTopCenter(), isPlausible(p), distance(p, mouse) < maxDistance {
+            DebugLog.write("overlay anchor=element p=\(Int(p.x)),\(Int(p.y)) mouse=\(Int(mouse.x)),\(Int(mouse.y))")
+            return p
+        }
+        let fallback = mouseAnchor()
+        DebugLog.write("overlay anchor=mouse p=\(Int(fallback.x)),\(Int(fallback.y))")
+        return fallback
+    }
+
+    private func distance(_ a: NSPoint, _ b: NSPoint) -> CGFloat {
+        let dx = a.x - b.x
+        let dy = a.y - b.y
+        return (dx * dx + dy * dy).squareRoot()
     }
 
     private func isPlausible(_ p: NSPoint) -> Bool {
-        if p.x < 10 && p.y < 10 { return false }
         if !p.x.isFinite || !p.y.isFinite { return false }
+        if p.x < 10 || p.y < 10 { return false }
         return NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(p) }
     }
 }

@@ -8,7 +8,6 @@ struct RecordingIndicatorView: View {
         ZStack {
             Capsule()
                 .fill(.black.opacity(0.88))
-                .shadow(color: .black.opacity(0.4), radius: 8, y: 3)
 
             content
                 .padding(.horizontal, 14)
@@ -99,11 +98,16 @@ final class WaveformAnimator: ObservableObject {
         lastTick = now
 
         let input = CGFloat(level)
-        retargetClock += dt
-        if retargetClock >= retargetInterval {
+        if input < 0.03 {
+            for i in 0..<barCount { targets[i] = 0 }
             retargetClock = 0
-            for i in 0..<barCount {
-                targets[i] = input * CGFloat.random(in: 0.35...1.0)
+        } else {
+            retargetClock += dt
+            if retargetClock >= retargetInterval {
+                retargetClock = 0
+                for i in 0..<barCount {
+                    targets[i] = input * CGFloat.random(in: 0.35...1.0)
+                }
             }
         }
 
@@ -132,7 +136,7 @@ struct BarsWaveformView: View {
     @StateObject private var animator = WaveformAnimator(
         barCount: 18,
         attackTime: 0.020,
-        releaseTime: 0.004
+        releaseTime: 0.0015
     )
 
     var body: some View {

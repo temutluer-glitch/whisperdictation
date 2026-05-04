@@ -3,14 +3,21 @@ import AVFoundation
 import Combine
 
 @MainActor
-final class AudioRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
+final class AudioRecorder: NSObject, ObservableObject, AVCaptureFileOutputRecordingDelegate {
     @Published var currentLevel: Float = 0
 
-    private var recorder: AVAudioRecorder?
+    private let session = AVCaptureSession()
+    private var audioInput: AVCaptureDeviceInput?
+    private let fileOutput = AVCaptureAudioFileOutput()
     private var currentURL: URL?
     private var meterTimer: Timer?
     private(set) var startTime: Date?
     private(set) var maxLevelDb: Float = -160
+    private var stopContinuation: CheckedContinuation<Void, Never>?
+
+    /// uniqueID of the explicitly selected input device, or empty for system default.
+    /// Set this before each `start()` call to lock the recorder to a specific microphone.
+    var preferredInputDeviceID: String = ""
 
     enum RecorderError: LocalizedError {
         case permissionDenied
@@ -38,32 +45,30 @@ final class AudioRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             throw RecorderError.permissionDenied
         }
 
+        try configureSession()
+
         let url = makeTempURL()
-        let settings: [String: Any] = [
+        self.currentURL = url
+        self.startTime = Date()
+        self.maxLevelDb = -160
+        self.currentLevel = 0
+
+        if !session.isRunning {
+            session.startRunning()
+        }
+
+        // AVCaptureAudioFileOutput.audioSettings is read-only at the codec level for AAC,
+        // but channels and sample rate can be tuned via the settings dict.
+        fileOutput.audioSettings = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
             AVSampleRateKey: 16_000,
             AVNumberOfChannelsKey: 1,
             AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue
         ]
 
-        do {
-            let recorder = try AVAudioRecorder(url: url, settings: settings)
-            recorder.delegate = self
-            recorder.isMeteringEnabled = true
-            recorder.prepareToRecord()
-            if !recorder.record() {
-                throw RecorderError.recordingFailed("record() returned false")
-            }
-            self.recorder = recorder
-            self.currentURL = url
-            self.startTime = Date()
-            self.maxLevelDb = -160
-            self.currentLevel = 0
-            startMetering()
-            return url
-        } catch {
-            throw RecorderError.recordingFailed(error.localizedDescription)
-        }
+        fileOutput.startRecording(to: url, outputFileType: .m4a, recordingDelegate: self)
+        startMetering()
+        return url
     }
 
     struct StopResult {
@@ -73,12 +78,16 @@ final class AudioRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 
     func stop() -> StopResult? {
-        guard let recorder = recorder, let url = currentURL else { return nil }
+        guard let url = currentURL else { return nil }
         let duration = startTime.map { Date().timeIntervalSince($0) } ?? 0
-        recorder.stop()
-        stopMetering()
         let maxDb = maxLevelDb
-        self.recorder = nil
+
+        if fileOutput.isRecording {
+            fileOutput.stopRecording()
+        }
+        stopMetering()
+        teardownSession()
+
         self.currentURL = nil
         self.startTime = nil
         self.currentLevel = 0
@@ -86,15 +95,74 @@ final class AudioRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 
     func cancel() {
-        recorder?.stop()
+        if fileOutput.isRecording {
+            fileOutput.stopRecording()
+        }
         stopMetering()
+        teardownSession()
         if let url = currentURL {
             try? FileManager.default.removeItem(at: url)
         }
-        recorder = nil
         currentURL = nil
         startTime = nil
         currentLevel = 0
+    }
+
+    private func configureSession() throws {
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+
+        if let existing = audioInput {
+            session.removeInput(existing)
+            audioInput = nil
+        }
+        if !session.outputs.contains(fileOutput) {
+            if session.canAddOutput(fileOutput) {
+                session.addOutput(fileOutput)
+            } else {
+                throw RecorderError.recordingFailed("Konnte Audio-File-Output nicht zur Capture-Session hinzufügen.")
+            }
+        }
+
+        let device = resolveInputDevice()
+        guard let device else {
+            throw RecorderError.recordingFailed("Kein Mikrofon gefunden.")
+        }
+
+        do {
+            let input = try AVCaptureDeviceInput(device: device)
+            guard session.canAddInput(input) else {
+                throw RecorderError.recordingFailed("Capture-Session lehnt das Mikrofon ab: \(device.localizedName)")
+            }
+            session.addInput(input)
+            self.audioInput = input
+            DebugLog.write("audio device=\(device.localizedName) uid=\(device.uniqueID) preferredID=\(preferredInputDeviceID.isEmpty ? "default" : preferredInputDeviceID)")
+        } catch let recorderError as RecorderError {
+            throw recorderError
+        } catch {
+            throw RecorderError.recordingFailed(error.localizedDescription)
+        }
+    }
+
+    private func resolveInputDevice() -> AVCaptureDevice? {
+        if !preferredInputDeviceID.isEmpty,
+           let preferred = AudioDeviceCatalog.device(forUniqueID: preferredInputDeviceID) {
+            return preferred
+        }
+        if !preferredInputDeviceID.isEmpty {
+            DebugLog.write("audio preferred device \(preferredInputDeviceID) not available, falling back to default")
+        }
+        return AVCaptureDevice.default(for: .audio)
+    }
+
+    private func teardownSession() {
+        if session.isRunning {
+            session.stopRunning()
+        }
+        if let input = audioInput {
+            session.removeInput(input)
+            audioInput = nil
+        }
     }
 
     private func startMetering() {
@@ -113,10 +181,11 @@ final class AudioRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 
     private func tick() {
-        guard let recorder = recorder else { return }
-        recorder.updateMeters()
-        let avg = recorder.averagePower(forChannel: 0)
-        let peak = recorder.peakPower(forChannel: 0)
+        guard let connection = fileOutput.connection(with: .audio) else { return }
+        let channels = connection.audioChannels
+        guard !channels.isEmpty else { return }
+        let avg = channels.map { $0.averagePowerLevel }.max() ?? -160
+        let peak = channels.map { $0.peakHoldLevel }.max() ?? -160
         let db = max(avg, peak - 6)
         if db > maxLevelDb { maxLevelDb = db }
         let normalized = max(0, min(1, (db + 50) / 50))
@@ -128,5 +197,16 @@ final class AudioRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
             .appendingPathComponent("WhisperDictation", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("rec-\(UUID().uuidString).m4a")
+    }
+
+    // MARK: - AVCaptureFileOutputRecordingDelegate
+
+    nonisolated func fileOutput(_ output: AVCaptureFileOutput,
+                                didFinishRecordingTo outputFileURL: URL,
+                                from connections: [AVCaptureConnection],
+                                error: Error?) {
+        if let error {
+            DebugLog.write("audio file output finished with error: \(error.localizedDescription)")
+        }
     }
 }

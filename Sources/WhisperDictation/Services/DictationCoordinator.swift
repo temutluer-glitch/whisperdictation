@@ -71,11 +71,15 @@ final class DictationCoordinator: ObservableObject {
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
         DebugLog.write("hotkeyPress frontApp=\(front) binding=\(bindingID.uuidString.prefix(8))")
 
+        let preferredDeviceID = settingsStore?.preferredInputDeviceID ?? ""
+
         Task {
             let status = AVCaptureDevice.authorizationStatus(for: .audio)
             if status == .notDetermined {
                 _ = await recorder.requestPermission()
             }
+
+            recorder.preferredInputDeviceID = preferredDeviceID
 
             do {
                 _ = try recorder.start()

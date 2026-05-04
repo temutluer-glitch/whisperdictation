@@ -17,6 +17,7 @@ final class SettingsStore: ObservableObject {
         static let llmModel = "llmModel"
         static let llmPresets = "llmPresets"
         static let hasGroqKey = "hasGroqKey"
+        static let preferredInputDeviceID = "preferredInputDeviceID"
     }
 
     @Published var hotkeyBindings: [HotkeyBinding] {
@@ -63,6 +64,11 @@ final class SettingsStore: ObservableObject {
             KeychainStore.set(groqAPIKey, for: KeychainStore.Account.groqAPIKey)
             UserDefaults.standard.set(!groqAPIKey.isEmpty, forKey: Key.hasGroqKey)
         }
+    }
+
+    /// Empty string means "system default input device".
+    @Published var preferredInputDeviceID: String {
+        didSet { UserDefaults.standard.set(preferredInputDeviceID, forKey: Key.preferredInputDeviceID) }
     }
 
     func preset(for binding: HotkeyBinding) -> PromptPreset? {
@@ -113,6 +119,7 @@ final class SettingsStore: ObservableObject {
         }
 
         self.groqAPIKey = KeychainStore.get(KeychainStore.Account.groqAPIKey) ?? ""
+        self.preferredInputDeviceID = defaults.string(forKey: Key.preferredInputDeviceID) ?? ""
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

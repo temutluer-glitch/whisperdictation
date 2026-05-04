@@ -47,25 +47,26 @@ fi
 ENTITLEMENTS="$REPO_ROOT/Sources/WhisperDictation/WhisperDictation.entitlements"
 
 echo "==> Re-Sign mit '$CERT_NAME' …"
-# Erst Frameworks signieren, dann das App-Bundle (deep funktioniert nicht für nested signed bundles wie Sparkle.framework's XPC-Helpers)
-find "$APP_PATH/Contents/Frameworks" -type d -name '*.framework' -prune -print 2>/dev/null | while read -r fw; do
-  echo "    Sign FW: $fw"
-  codesign --force --options=runtime --timestamp=none --sign "$CERT_NAME" "$fw"
-done
+SPARKLE_FW="$APP_PATH/Contents/Frameworks/Sparkle.framework"
 
-# Sparkle bundles/XPCs separat signieren
-find "$APP_PATH" -type d \( -name "*.xpc" -o -name "*.app" \) -prune -print 2>/dev/null | while read -r nested; do
-  if [[ "$nested" != "$APP_PATH" ]]; then
-    echo "    Sign Bundle: $nested"
-    codesign --force --options=runtime --timestamp=none --sign "$CERT_NAME" "$nested"
-  fi
-done
+# Stale signatures der nested bundles entfernen, damit die anschliessende
+# Deep-Signing keinen Konflikt mit pre-existing _CodeSignature/CodeResources
+# Dateien hat (verursacht sonst "Sparkle.cstemp missing" verify errors).
+echo "    Clean: alte _CodeSignature/ in Sparkle.framework entfernen"
+find "$SPARKLE_FW" -name _CodeSignature -type d -exec rm -rf {} + 2>/dev/null || true
+find "$SPARKLE_FW" -name "*.cstemp" -delete 2>/dev/null || true
 
-echo "    Sign App: $APP_PATH"
+# Sparkle.framework rekursiv mit Deep signen — re-signiert alle nested
+# XPC services, Updater.app, Autoupdate consistent mit unserer Identity.
+echo "    Sign: Sparkle.framework (deep)"
+codesign --force --deep --options=runtime --timestamp=none \
+  --sign "$CERT_NAME" "$SPARKLE_FW"
+
+# App-Bundle als letztes (mit Entitlements, ohne deep — Frameworks sind schon korrekt)
+echo "    Sign: WhisperDictation.app"
 codesign --force --options=runtime --timestamp=none \
   --entitlements "$ENTITLEMENTS" \
-  --sign "$CERT_NAME" \
-  "$APP_PATH"
+  --sign "$CERT_NAME" "$APP_PATH"
 
 echo "==> Verifiziere Signatur …"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"

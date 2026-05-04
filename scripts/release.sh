@@ -97,7 +97,6 @@ ITEM_XML=$(cat <<EOF
       <description><![CDATA[<p>$NOTES</p>]]></description>
       <enclosure
         url="$DOWNLOAD_URL"
-        length="$ZIP_SIZE"
         type="application/octet-stream"
         $SPARKLE_SIG />
     </item>

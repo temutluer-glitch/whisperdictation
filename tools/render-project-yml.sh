@@ -12,7 +12,7 @@ SRC="$REPO_ROOT/project.yml"
 OUT="$REPO_ROOT/project.generated.yml"
 
 : "${WD_BUNDLE_ID:=com.innosolv.WhisperDictation}"
-: "${WD_DISPLAY_NAME:=WhisperDictation}"
+: "${WD_DISPLAY_NAME:=InnoWhisper}"
 : "${WD_APPICON:=AppIcon}"
 : "${WD_FEED_URL:=https://raw.githubusercontent.com/temutluer-glitch/whisperdictation/main/appcast.xml}"
 : "${WD_SPARKLE_ENABLED:=true}"

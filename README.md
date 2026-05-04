@@ -1,4 +1,6 @@
-# WhisperDictation
+# InnoWhisper
+
+> Repo-Name historisch `whisperdictation`. Bundle-ID, Cert und Sparkle-Pfade bleiben aus Migrations-Gründen unverändert; user-sichtbar ist die App seit 1.x.x als **InnoWhisper** gebrandet.
 
 Systemweite Diktier-App für macOS. Hotkey drücken, sprechen, Text landet in der aktiven App. Nutzt Groq Whisper (`whisper-large-v3-turbo`) zur Transkription und optional Groq Llama zur automatischen Nachbearbeitung (z.B. Füllwörter entfernen, als E-Mail formatieren).
 

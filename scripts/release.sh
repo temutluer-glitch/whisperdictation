@@ -48,8 +48,8 @@ sed -i '' "s|CURRENT_PROJECT_VERSION: \"[^\"]*\"|CURRENT_PROJECT_VERSION: \"$BUI
 echo "==> Baue + signiere …"
 bash scripts/build-release.sh
 
-ZIP_PATH="$REPO_ROOT/dist/WhisperDictation-$VERSION.zip"
-DMG_PATH="$REPO_ROOT/dist/WhisperDictation-$VERSION.dmg"
+ZIP_PATH="$REPO_ROOT/dist/InnoWhisper-$VERSION.zip"
+DMG_PATH="$REPO_ROOT/dist/InnoWhisper-$VERSION.dmg"
 if [[ ! -f "$ZIP_PATH" ]]; then
   echo "fehler: Zip nicht gefunden: $ZIP_PATH"
   exit 1
@@ -72,7 +72,7 @@ echo "    $SPARKLE_SIG"
 
 ZIP_SIZE=$(stat -f %z "$ZIP_PATH")
 PUBDATE="$(date -u +"%a, %d %b %Y %H:%M:%S +0000")"
-DOWNLOAD_URL="https://github.com/$REPO_SLUG/releases/download/v$VERSION/WhisperDictation-$VERSION.zip"
+DOWNLOAD_URL="https://github.com/$REPO_SLUG/releases/download/v$VERSION/InnoWhisper-$VERSION.zip"
 
 APPCAST="$REPO_ROOT/appcast.xml"
 
@@ -82,9 +82,9 @@ if [[ ! -f "$APPCAST" ]]; then
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
-    <title>WhisperDictation</title>
+    <title>InnoWhisper</title>
     <link>https://github.com/$REPO_SLUG</link>
-    <description>WhisperDictation Update Feed</description>
+    <description>InnoWhisper Update Feed</description>
     <language>de</language>
   </channel>
 </rss>

@@ -96,9 +96,9 @@ enum PermissionHelper {
             let alert = NSAlert()
             alert.messageText = "Bedienungshilfen-Zugriff erforderlich"
             alert.informativeText = """
-            WhisperDictation braucht Zugriff auf die Bedienungshilfen, um den transkribierten Text in die aktive App einzufügen.
+            InnoWhisper braucht Zugriff auf die Bedienungshilfen, um den transkribierten Text in die aktive App einzufügen.
 
-            Klicke auf "Einstellungen öffnen", aktiviere WhisperDictation unter \
+            Klicke auf "Einstellungen öffnen", aktiviere InnoWhisper unter \
             Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen, und starte die App neu.
             """
             alert.addButton(withTitle: "Einstellungen öffnen")

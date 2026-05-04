@@ -33,8 +33,8 @@ targets:
       properties:
         CFBundleDisplayName: "${WD_DISPLAY_NAME}"
         LSUIElement: true
-        NSMicrophoneUsageDescription: "WhisperDictation nutzt dein Mikrofon, um Sprache für die Transkription aufzuzeichnen."
-        NSAppleEventsUsageDescription: "WhisperDictation fügt transkribierten Text per Tastatur-Simulation in die aktive App ein."
+        NSMicrophoneUsageDescription: "InnoWhisper nutzt dein Mikrofon, um Sprache für die Transkription aufzuzeichnen."
+        NSAppleEventsUsageDescription: "InnoWhisper fügt transkribierten Text per Tastatur-Simulation in die aktive App ein."
         CFBundleShortVersionString: "1.1.2"
         CFBundleVersion: "21"
         NSHumanReadableCopyright: "© 2026 Timur Mutluer"

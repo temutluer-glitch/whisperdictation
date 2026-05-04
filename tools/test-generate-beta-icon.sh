@@ -22,5 +22,30 @@ for f in "${EXPECTED[@]}"; do
     exit 1
   fi
 done
-python3 -c "import json; json.load(open('$ICONSET/Contents.json'))"
+
+# Genau 10 PNGs erwartet, kein Extra-Drift.
+PNG_COUNT="$(find "$ICONSET" -name '*.png' -type f | wc -l | tr -d ' ')"
+if [[ "$PNG_COUNT" != "10" ]]; then
+  echo "fehler: erwartet 10 PNGs in $ICONSET, gefunden $PNG_COUNT"
+  exit 1
+fi
+
+# Contents.json muss valides JSON sein und genau die erwarteten PNGs referenzieren.
+ICONSET="$ICONSET" python3 - <<'PY'
+import json, os, sys
+iconset = os.environ["ICONSET"]
+expected = sorted([
+    "icon_16x16.png", "icon_16x16@2x.png",
+    "icon_32x32.png", "icon_32x32@2x.png",
+    "icon_128x128.png", "icon_128x128@2x.png",
+    "icon_256x256.png", "icon_256x256@2x.png",
+    "icon_512x512.png", "icon_512x512@2x.png",
+])
+data = json.load(open(os.path.join(iconset, "Contents.json")))
+names = sorted(img["filename"] for img in data["images"])
+if names != expected:
+    sys.stderr.write(f"fehler: Contents.json drift\n  erwartet: {expected}\n  gefunden: {names}\n")
+    sys.exit(1)
+PY
+
 echo "ok"

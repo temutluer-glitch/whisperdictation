@@ -7,6 +7,14 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
+// Visuelle Tuning-Parameter. Anpassen, wenn das Beta-Icon klarer/dezenter werden soll.
+let tintRGBA: (red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat) =
+    (1.0, 0.55, 0.0, 0.55)
+let badgeDiameterRatio: CGFloat = 0.42
+let badgeInsetRatio: CGFloat = 0.04
+let badgeFillAlpha: CGFloat = 0.85
+let badgeFontSizeRatio: CGFloat = 0.72
+
 let fileManager = FileManager.default
 let scriptURL = URL(fileURLWithPath: CommandLine.arguments[0])
 let repoRoot = scriptURL.deletingLastPathComponent().deletingLastPathComponent()
@@ -65,20 +73,21 @@ func tintAndBadge(image: CGImage, pixelSize: CGFloat) -> CGImage {
 
     // Orange Multiply-Tint: erhält Form, färbt Highlights orange.
     ctx.setBlendMode(.multiply)
-    ctx.setFillColor(red: 1.0, green: 0.55, blue: 0.0, alpha: 0.55)
+    ctx.setFillColor(red: tintRGBA.red, green: tintRGBA.green, blue: tintRGBA.blue, alpha: tintRGBA.alpha)
     ctx.fill(rect)
 
     // β-Badge unten rechts. Skalierung relativ zur Pixelgröße.
     ctx.setBlendMode(.normal)
-    let badgeDiameter = pixelSize * 0.42
-    let badgeRect = CGRect(x: pixelSize - badgeDiameter - pixelSize * 0.04,
-                           y: pixelSize * 0.04,
+    let badgeDiameter = pixelSize * badgeDiameterRatio
+    let badgeInset = pixelSize * badgeInsetRatio
+    let badgeRect = CGRect(x: pixelSize - badgeDiameter - badgeInset,
+                           y: badgeInset,
                            width: badgeDiameter,
                            height: badgeDiameter)
-    ctx.setFillColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.85)
+    ctx.setFillColor(red: 0.0, green: 0.0, blue: 0.0, alpha: badgeFillAlpha)
     ctx.fillEllipse(in: badgeRect)
 
-    let fontSize = badgeDiameter * 0.72
+    let fontSize = badgeDiameter * badgeFontSizeRatio
     let attrs: [NSAttributedString.Key: Any] = [
         .font: NSFont.systemFont(ofSize: fontSize, weight: .bold),
         .foregroundColor: NSColor.white,

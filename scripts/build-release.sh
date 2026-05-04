@@ -28,8 +28,11 @@ fi
 
 mkdir -p "$OUT_DIR"
 
+echo "==> Rendere project.yml zu project.generated.yml …"
+bash "$REPO_ROOT/tools/render-project-yml.sh" >/dev/null
+
 echo "==> Generiere Xcode-Projekt …"
-"$XCG" generate >/dev/null
+"$XCG" generate --spec "$REPO_ROOT/project.generated.yml" >/dev/null
 
 echo "==> Baue Release …"
 xcodebuild -project WhisperDictation.xcodeproj \

@@ -33,14 +33,14 @@ targets:
         CFBundleShortVersionString: "1.1.2"
         CFBundleVersion: "21"
         NSHumanReadableCopyright: "© 2026 Timur Mutluer"
-        SUFeedURL: "https://raw.githubusercontent.com/temutluer-glitch/whisperdictation/main/appcast.xml"
+        SUFeedURL: "${WD_FEED_URL}"
         SUPublicEDKey: "Em7ytxl6BZIiqy0vtdnlnIOan/WRv7vWPOI/CbmV/hE="
         SUEnableInstallerLauncherService: false
-        SUEnableAutomaticChecks: true
+        SUEnableAutomaticChecks: ${WD_SPARKLE_ENABLED}
         SUScheduledCheckInterval: 86400
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.innosolv.WhisperDictation
+        PRODUCT_BUNDLE_IDENTIFIER: ${WD_BUNDLE_ID}
         MARKETING_VERSION: "1.1.2"
         CURRENT_PROJECT_VERSION: "21"
         SWIFT_VERSION: "5.9"
@@ -49,4 +49,5 @@ targets:
         CODE_SIGN_IDENTITY: "-"
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_ENTITLEMENTS: Sources/WhisperDictation/WhisperDictation.entitlements
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_APPICON_NAME: ${WD_APPICON}
+        INFOPLIST_KEY_CFBundleDisplayName: ${WD_DISPLAY_NAME}

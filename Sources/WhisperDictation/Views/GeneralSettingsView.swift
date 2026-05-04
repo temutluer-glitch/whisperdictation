@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GeneralSettingsView: View {
     @EnvironmentObject private var settings: SettingsStore
+    @EnvironmentObject private var updater: UpdateController
 
     var body: some View {
         Form {
@@ -19,8 +20,25 @@ struct GeneralSettingsView: View {
                 .pickerStyle(.radioGroup)
             }
 
+            Section("Updates") {
+                Toggle("Automatisch nach Updates suchen", isOn: Binding(
+                    get: { updater.automaticallyChecksForUpdates },
+                    set: { updater.setAutomaticallyChecksForUpdates($0) }
+                ))
+                HStack {
+                    Button("Jetzt nach Updates suchen") {
+                        updater.checkForUpdates()
+                    }
+                    .disabled(!updater.canCheckForUpdates)
+                    Spacer()
+                    Text("Version \(updater.currentVersion)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("Über") {
-                Text("WhisperDictation v1.0.0")
+                Text("WhisperDictation – systemweite Diktierfunktion")
                     .foregroundStyle(.secondary)
                 Text("Nutzt Groq Whisper API für Transkription und optional Groq Chat für LLM-Postprocessing.")
                     .font(.caption)

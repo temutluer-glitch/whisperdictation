@@ -31,3 +31,12 @@ SupportingFiles/Info.plist
 # User secrets (should be in Keychain anyway, but just in case)
 *.env
 secrets.json
+
+# Release artifacts
+dist/
+
+# Signing private material — NEVER commit
+signing/*.p12
+signing/*.key
+signing/*.pem
+# Note: signing/cert-public.cer IS committed for team distribution

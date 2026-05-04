@@ -78,17 +78,24 @@ final class CursorOverlay {
     private func reposition(panel: NSPanel) {
         guard let anchor = anchorPoint else { return }
         let size = hostingView?.fittingSize ?? NSSize(width: 160, height: 36)
+
+        let screen = screenContaining(anchor) ?? NSScreen.main ?? NSScreen.screens.first
+        guard let screen else { return }
+        let visible = screen.visibleFrame
+
         var x = anchor.x - size.width / 2
         var y = anchor.y + 6
 
-        let screen = NSScreen.screens.first(where: { $0.frame.contains(anchor) })
-            ?? NSScreen.main
-        if let frame = screen?.visibleFrame {
-            x = min(max(x, frame.minX + 4), frame.maxX - size.width - 4)
-            if y + size.height > frame.maxY { y = frame.maxY - size.height - 4 }
-            if y < frame.minY { y = frame.minY + 4 }
+        if y + size.height > visible.maxY {
+            y = anchor.y - size.height - 18
         }
-        panel.setFrameOrigin(NSPoint(x: x, y: y))
+
+        x = min(max(x, visible.minX + 4), visible.maxX - size.width - 4)
+        y = min(max(y, visible.minY + 4), visible.maxY - size.height - 4)
+
+        let final = NSPoint(x: x, y: y)
+        DebugLog.write("overlay reposition anchor=\(Int(anchor.x)),\(Int(anchor.y)) screen=\(Int(visible.minX)),\(Int(visible.minY))-\(Int(visible.maxX)),\(Int(visible.maxY)) final=\(Int(x)),\(Int(y))")
+        panel.setFrameOrigin(final)
     }
 
     private func elementTopCenter() -> NSPoint? {
@@ -108,6 +115,7 @@ final class CursorOverlay {
 
         if size.width < 20 || size.height < 12 { return nil }
         if size.width > 1600 || size.height > 900 { return nil }
+        if pos.x == 0 && pos.y == 0 { return nil }
 
         let topCenterAX = CGPoint(x: pos.x + size.width / 2, y: pos.y)
         return convertAXToScreenCoordinates(topCenterAX)
@@ -138,6 +146,7 @@ final class CursorOverlay {
 
         if rect.height < 6 || rect.height > 200 { return nil }
         if rect.origin.x == 0 && rect.origin.y == 0 { return nil }
+        if !rect.origin.x.isFinite || !rect.origin.y.isFinite { return nil }
 
         let topCenter = CGPoint(x: rect.midX, y: rect.minY)
         return convertAXToScreenCoordinates(topCenter)
@@ -156,11 +165,22 @@ final class CursorOverlay {
         return (focusedElementValue as! AXUIElement)
     }
 
+    private func primaryScreen() -> NSScreen? {
+        if let primary = NSScreen.screens.first(where: { $0.frame.origin == .zero }) {
+            return primary
+        }
+        return NSScreen.screens.first
+    }
+
+    private func screenContaining(_ point: NSPoint) -> NSScreen? {
+        return NSScreen.screens.first { $0.frame.contains(point) }
+    }
+
     private func convertAXToScreenCoordinates(_ point: CGPoint) -> NSPoint {
-        guard let primaryScreen = NSScreen.screens.first else {
+        guard let primary = primaryScreen() else {
             return NSPoint(x: point.x, y: point.y)
         }
-        let primaryHeight = primaryScreen.frame.height
+        let primaryHeight = primary.frame.height
         return NSPoint(x: point.x, y: primaryHeight - point.y)
     }
 
@@ -194,7 +214,6 @@ final class CursorOverlay {
 
     private func isPlausible(_ p: NSPoint) -> Bool {
         if !p.x.isFinite || !p.y.isFinite { return false }
-        if p.x < 10 || p.y < 10 { return false }
-        return NSScreen.screens.contains { $0.frame.insetBy(dx: -2, dy: -2).contains(p) }
+        return screenContaining(p) != nil
     }
 }

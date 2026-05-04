@@ -17,6 +17,7 @@ final class AppServices: ObservableObject {
 struct WhisperDictationApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var services = AppServices()
+    @StateObject private var updateController = UpdateController()
 
     var body: some Scene {
         MenuBarExtra {
@@ -24,6 +25,7 @@ struct WhisperDictationApp: App {
                 .environmentObject(services.appState)
                 .environmentObject(services.settingsStore)
                 .environmentObject(services.coordinator)
+                .environmentObject(updateController)
         } label: {
             Image(systemName: services.appState.menuBarIconName)
                 .symbolRenderingMode(.hierarchical)
@@ -35,6 +37,7 @@ struct WhisperDictationApp: App {
                 .environmentObject(services.settingsStore)
                 .environmentObject(services.appState)
                 .environmentObject(services.history)
+                .environmentObject(updateController)
                 .frame(minWidth: 680, minHeight: 520)
         }
     }
@@ -55,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct MenuContent: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var coordinator: DictationCoordinator
+    @EnvironmentObject private var updater: UpdateController
 
     var body: some View {
         Text(statusLine)
@@ -79,6 +83,11 @@ struct MenuContent: View {
             Text("Einstellungen…")
         }
         .keyboardShortcut(",")
+
+        Button("Auf Updates prüfen…") {
+            updater.checkForUpdates()
+        }
+        .disabled(!updater.canCheckForUpdates)
 
         Button("Beenden") {
             NSApp.terminate(nil)

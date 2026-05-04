@@ -80,8 +80,13 @@ echo "==> Zippe für Sparkle …"
 rm -f "$ZIP_PATH"
 ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
+DMG_PATH="$OUT_DIR/WhisperDictation-$VERSION.dmg"
+echo "==> Baue DMG für manuelle Installation …"
+bash "$REPO_ROOT/scripts/make-dmg.sh"
+
 echo ""
 echo "Fertig:"
 echo "  App: $APP_PATH"
 echo "  Zip: $ZIP_PATH"
+echo "  DMG: $DMG_PATH"
 echo "  Version: $VERSION"

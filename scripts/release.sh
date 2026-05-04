@@ -49,8 +49,13 @@ echo "==> Baue + signiere …"
 bash scripts/build-release.sh
 
 ZIP_PATH="$REPO_ROOT/dist/WhisperDictation-$VERSION.zip"
+DMG_PATH="$REPO_ROOT/dist/WhisperDictation-$VERSION.dmg"
 if [[ ! -f "$ZIP_PATH" ]]; then
   echo "fehler: Zip nicht gefunden: $ZIP_PATH"
+  exit 1
+fi
+if [[ ! -f "$DMG_PATH" ]]; then
+  echo "fehler: DMG nicht gefunden: $DMG_PATH"
   exit 1
 fi
 
@@ -125,12 +130,13 @@ echo "==> Push to origin …"
 git push origin "$(git branch --show-current)"
 git push origin "v$VERSION"
 
-echo "==> GitHub Release erstellen mit Zip als Asset …"
+echo "==> GitHub Release erstellen mit Zip + DMG als Assets …"
 "$GH" release create "v$VERSION" \
   --repo "$REPO_SLUG" \
   --title "v$VERSION" \
   --notes "$NOTES" \
-  "$ZIP_PATH"
+  "$ZIP_PATH" \
+  "$DMG_PATH"
 
 echo ""
 echo "Fertig."

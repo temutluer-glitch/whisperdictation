@@ -76,6 +76,25 @@ private struct HistoryRow: View {
     let onCopyRaw: () -> Void
     let onDelete: () -> Void
 
+    @State private var textWidth: CGFloat = 0
+
+    private static let collapsedLineLimit = 2
+
+    private var isOverflowing: Bool {
+        guard textWidth > 0 else { return false }
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let attributed = NSAttributedString(string: entry.processedText, attributes: [.font: font])
+        let bounds = attributed.boundingRect(
+            with: NSSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading]
+        )
+        let lineHeight = NSLayoutManager().defaultLineHeight(for: font)
+        let lines = Int((bounds.height / lineHeight).rounded(.up))
+        return lines > Self.collapsedLineLimit
+    }
+
+    private var showsExpandToggle: Bool { isExpanded || isOverflowing }
+
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
@@ -91,25 +110,21 @@ private struct HistoryRow: View {
                     Spacer()
                 }
                 Text(entry.processedText)
-                    .lineLimit(isExpanded ? nil : 2)
+                    .lineLimit(isExpanded ? nil : Self.collapsedLineLimit)
                     .truncationMode(.tail)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+                    .background(GeometryReader { proxy in
+                        Color.clear
+                            .onAppear { textWidth = proxy.size.width }
+                            .onChange(of: proxy.size.width) { _, new in textWidth = new }
+                    })
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
-            .onTapGesture { onToggleExpand() }
+            .onTapGesture { if showsExpandToggle { onToggleExpand() } }
 
             VStack(spacing: 4) {
-                Button(action: onToggleExpand) {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 18, height: 18)
-                }
-                .buttonStyle(.borderless)
-                .help(isExpanded ? "Einklappen" : "Vollständigen Text zeigen")
-
                 Button(action: onCopy) {
                     Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
                         .symbolRenderingMode(.hierarchical)
@@ -118,10 +133,23 @@ private struct HistoryRow: View {
                 }
                 .buttonStyle(.borderless)
                 .help(justCopied ? "Kopiert" : "Text in Zwischenablage kopieren")
+
+                if showsExpandToggle {
+                    Button(action: onToggleExpand) {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 18, height: 18)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(isExpanded ? "Einklappen" : "Vollständigen Text zeigen")
+                }
             }
         }
         .contextMenu {
-            Button(isExpanded ? "Einklappen" : "Vollständigen Text zeigen") { onToggleExpand() }
+            if showsExpandToggle {
+                Button(isExpanded ? "Einklappen" : "Vollständigen Text zeigen") { onToggleExpand() }
+            }
             Button("Text kopieren") { onCopy() }
             if entry.rawText != entry.processedText {
                 Button("Rohtext kopieren") { onCopyRaw() }

@@ -4,9 +4,11 @@ Hi! Mit WhisperDictation kannst du in jeder Mac-App per Tastenkürzel Sprache zu
 
 ## 1. App herunterladen
 
-Klicke auf den von Timur geteilten Link zur aktuellen Version. Du landest auf einer GitHub-Release-Seite. Lade dort `WhisperDictation-X.Y.Z.zip` herunter und entpacke es per Doppelklick.
+Klicke auf den von Timur geteilten Link zur aktuellen Version. Du landest auf einer GitHub-Release-Seite. Lade dort `WhisperDictation-X.Y.Z.dmg` herunter.
 
-Verschiebe `WhisperDictation.app` per Drag & Drop in deinen Programme-Ordner (`/Applications`).
+Doppelklick auf die heruntergeladene `.dmg`-Datei. Es öffnet sich ein Fenster mit dem WhisperDictation-Symbol auf der linken Seite und einem Pfeil, der auf den Programme-Ordner rechts zeigt. Zieh das WhisperDictation-Symbol einfach auf den Programme-Ordner-Symbol.
+
+(Falls du stattdessen die `.zip` lädst: entpacken per Doppelklick und manuell nach `/Applications` ziehen.)
 
 ## 2. Code-Signing-Zertifikat vertrauen (einmalig)
 
@@ -30,12 +32,14 @@ Ab jetzt startet die App ganz normal per Doppelklick.
 
 ## 4. Berechtigungen erteilen (einmalig)
 
-Beim ersten Drücken des Hotkeys fragt macOS:
+Beim ersten Start fragt macOS:
 
-- **Mikrofon**: "Zulassen" anklicken.
-- **Bedienungshilfen**: Die App zeigt einen Dialog mit Button "Einstellungen öffnen". Klick drauf, in den Systemeinstellungen `WhisperDictation` aktivieren, dann App neu starten.
+- **Bedienungshilfen**: macOS poppt einen Standard-Dialog "WhisperDictation möchte deinen Computer steuern". Klicke "Systemeinstellungen öffnen", dort den Schalter neben WhisperDictation aktivieren (Mac-Passwort eingeben), dann WhisperDictation einmal beenden und neu starten.
+- **Mikrofon**: Beim ersten Drücken des Hotkeys auf "Zulassen" klicken.
 
-Diese Berechtigungen musst du nur einmal geben – auch nach Updates bleiben sie erhalten.
+Falls du irgendwann den Hinweis "Bedienungshilfen fehlen, hier öffnen" oben im Menü-Dropdown siehst: heißt die Berechtigung wurde von macOS zurückgesetzt (passiert manchmal nach OS-Updates). Klick drauf, Schalter wieder einschalten, App neu starten.
+
+Diese Berechtigungen sollten nach erstmaliger Erteilung über Updates erhalten bleiben.
 
 ## 5. Groq API-Key eintragen
 
@@ -65,9 +69,9 @@ Berechtigungen und Settings bleiben dabei erhalten.
 
 ## Troubleshooting
 
-**Hotkey reagiert nicht**: Bedienungshilfen-Berechtigung fehlt. Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen → WhisperDictation aktivieren.
+**Hotkey reagiert nicht oder Text wird nicht eingefügt**: Bedienungshilfen-Berechtigung fehlt. Im Menübar-Icon-Dropdown siehst du dann oben "Bedienungshilfen fehlen, hier öffnen". Klick drauf, Schalter aktivieren, App neu starten.
 
-**Sprechblase erscheint an falscher Stelle**: Kann in einigen Web-Apps (Slack, Notion-Web) vorkommen. In dem Fall fällt sie auf die Cursor-Position zurück. Falls problematisch: Timur Bescheid geben, im DebugLog (`~/Library/Logs/WhisperDictation/debug.log`) lässt sich nachvollziehen, welcher App-Kontext aktiv war.
+**Sprechblase erscheint an falscher Stelle**: In einigen Electron- und Web-Apps liefert das System keine zuverlässige Position des Eingabefelds zurück. In dem Fall fällt die Sprechblase auf die aktuelle Mausposition zurück. Falls hartnäckig: Timur Bescheid geben, im Log `/tmp/whisperdictation.log` lässt sich nachvollziehen, welcher App-Kontext aktiv war.
 
 **App startet nicht**: Erste Öffnung muss per Rechtsklick → "Öffnen" erfolgen (siehe Schritt 3). Bei späteren Versuchen Doppelklick.
 

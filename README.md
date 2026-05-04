@@ -77,8 +77,11 @@ WhisperDictation/
 ├── scripts/
 │   ├── setup-signing-cert.sh    ← einmalig: Self-Signed Cert
 │   ├── setup-sparkle-keys.sh    ← einmalig: Sparkle EdDSA
-│   ├── build-release.sh         ← Build + Re-Sign
+│   ├── build-release.sh         ← Build + Re-Sign + Zip + DMG
+│   ├── make-dmg.sh              ← Drag-to-Applications DMG (via tools/create-dmg)
 │   └── release.sh               ← End-to-End Release
+├── tools/
+│   └── create-dmg/              ← vendored, MIT
 ├── docs/
 │   ├── release-workflow.md
 │   ├── onboarding-team.md
@@ -106,7 +109,7 @@ WhisperDictation/
 
 ## Troubleshooting
 
-**Bedienungshilfen-Permission verloren**: kann passieren, wenn die App ohne stabile Code-Signatur gebaut und ersetzt wurde. Lösung: in den Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen den alten Eintrag entfernen und die neu installierte App wieder aktivieren.
+**Bedienungshilfen-Permission verloren**: passiert reproduzierbar bei lokalem `rm -rf /Applications/WhisperDictation.app` + `ditto`-Reinstall, weil macOS TCC den Eintrag trotz stabiler Designated Requirement invalidiert. Sparkle-In-Place-Updates erhalten die Permission. Hinweis erscheint im Menübar-Dropdown ("Bedienungshilfen fehlen, hier öffnen"); ein Klick führt direkt in den Settings-Pane.
 
 **Hotkey reagiert nicht (Hold-to-Talk)**: Hold braucht mindestens einen Modifier (⌥/⌘/⌃/⇧). Notfalls auf Toggle umstellen.
 

@@ -31,7 +31,7 @@ targets:
         NSMicrophoneUsageDescription: "WhisperDictation nutzt dein Mikrofon, um Sprache für die Transkription aufzuzeichnen."
         NSAppleEventsUsageDescription: "WhisperDictation fügt transkribierten Text per Tastatur-Simulation in die aktive App ein."
         CFBundleShortVersionString: "1.1.0"
-        CFBundleVersion: "1"
+        CFBundleVersion: "13"
         NSHumanReadableCopyright: "© 2026 Timur Mutluer"
         SUFeedURL: "https://raw.githubusercontent.com/temutluer-glitch/whisperdictation/main/appcast.xml"
         SUPublicEDKey: "Em7ytxl6BZIiqy0vtdnlnIOan/WRv7vWPOI/CbmV/hE="
@@ -42,7 +42,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.innosolv.WhisperDictation
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "13"
         SWIFT_VERSION: "5.9"
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_STYLE: Manual

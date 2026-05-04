@@ -1,3 +1,7 @@
+# ACHTUNG: ${WD_*}-Platzhalter werden von tools/render-project-yml.sh ersetzt.
+# Direkt `xcodegen generate` aufzurufen würde die Platzhalter literal übernehmen
+# und ein kaputtes Xcode-Projekt erzeugen. Immer `scripts/build-release.sh` nutzen
+# oder manuell `tools/render-project-yml.sh && xcodegen generate --spec project.generated.yml`.
 name: WhisperDictation
 options:
   bundleIdPrefix: com.innosolv

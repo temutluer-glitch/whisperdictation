@@ -4,6 +4,7 @@ import AppKit
 struct HistoryView: View {
     @EnvironmentObject private var history: TranscriptionHistory
     @State private var selectedID: UUID?
+    @State private var justCopiedID: UUID?
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -26,30 +27,14 @@ struct HistoryView: View {
             } else {
                 List(selection: $selectedID) {
                     ForEach(history.entries) { entry in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(entry.date, style: .time)
-                                Text(entry.date, style: .date)
-                                    .foregroundStyle(.secondary)
-                                if let name = entry.presetName {
-                                    Text("· \(name)")
-                                        .font(.caption)
-                                        .foregroundStyle(.tint)
-                                }
-                                Spacer()
-                            }
-                            Text(entry.processedText)
-                                .lineLimit(2)
-                                .truncationMode(.tail)
-                        }
+                        HistoryRow(
+                            entry: entry,
+                            justCopied: justCopiedID == entry.id,
+                            onCopy: { copy(entry.processedText, markingID: entry.id) },
+                            onCopyRaw: { copy(entry.rawText, markingID: entry.id) },
+                            onDelete: { history.remove(entry.id) }
+                        )
                         .tag(Optional(entry.id))
-                        .contextMenu {
-                            Button("Text kopieren") { copy(entry.processedText) }
-                            if entry.rawText != entry.processedText {
-                                Button("Rohtext kopieren") { copy(entry.rawText) }
-                            }
-                            Button("Löschen", role: .destructive) { history.remove(entry.id) }
-                        }
                     }
                 }
             }
@@ -57,9 +42,63 @@ struct HistoryView: View {
         .padding()
     }
 
-    private func copy(_ text: String) {
+    private func copy(_ text: String, markingID id: UUID) {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(text, forType: .string)
+        justCopiedID = id
+        let copiedID = id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            if justCopiedID == copiedID {
+                justCopiedID = nil
+            }
+        }
+    }
+}
+
+private struct HistoryRow: View {
+    let entry: HistoryEntry
+    let justCopied: Bool
+    let onCopy: () -> Void
+    let onCopyRaw: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(entry.date, style: .time)
+                    Text(entry.date, style: .date)
+                        .foregroundStyle(.secondary)
+                    if let name = entry.presetName {
+                        Text("· \(name)")
+                            .font(.caption)
+                            .foregroundStyle(.tint)
+                    }
+                    Spacer()
+                }
+                Text(entry.processedText)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button(action: onCopy) {
+                Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(justCopied ? .green : .primary)
+                    .frame(width: 18, height: 18)
+            }
+            .buttonStyle(.borderless)
+            .help(justCopied ? "Kopiert" : "Text in Zwischenablage kopieren")
+        }
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button("Text kopieren") { onCopy() }
+            if entry.rawText != entry.processedText {
+                Button("Rohtext kopieren") { onCopyRaw() }
+            }
+            Button("Löschen", role: .destructive) { onDelete() }
+        }
     }
 }

@@ -28,6 +28,8 @@ Menu-Bar-Icon → **Einstellungen…** öffnet das Einstellungsfenster:
 
 ## Für Entwickler
 
+**Wenn du einfach nur etwas an der App ändern willst und es bei den Mitarbeitern ankommen soll**: lies [docs/dev-workflow.md](docs/dev-workflow.md). Der Guide deckt den ganzen Loop ab (ändern → testen → committen → releasen). Alles unten ist nur fürs Initial-Setup oder für Detail-Themen.
+
 ### Setup
 
 1. **Xcode** installieren (Mac App Store) und einmal starten.
@@ -83,8 +85,9 @@ WhisperDictation/
 ├── tools/
 │   └── create-dmg/              ← vendored, MIT
 ├── docs/
-│   ├── release-workflow.md
-│   ├── onboarding-team.md
+│   ├── dev-workflow.md          ← ändern → testen → committen → releasen
+│   ├── release-workflow.md      ← Initial-Setup Cert+Sparkle+Repo
+│   ├── onboarding-team.md       ← Install-Guide für Mitarbeiter
 │   └── overlay-test-matrix.md
 └── Sources/WhisperDictation/
     ├── WhisperDictationApp.swift

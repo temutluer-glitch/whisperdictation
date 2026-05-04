@@ -28,6 +28,9 @@ Icon
 # xcodegen-generated Info.plist (generated from project.yml properties)
 SupportingFiles/Info.plist
 
+# Generated project spec (rendered from project.yml template)
+project.generated.yml
+
 # User secrets (should be in Keychain anyway, but just in case)
 *.env
 secrets.json

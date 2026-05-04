@@ -35,5 +35,20 @@
         type="application/octet-stream"
         sparkle:edSignature="CiF9sH59s5+YxayL5jKw8UAJ5PGkJrLJHDcccLnzzdJNLL8k7ChJfk634zy/XQ9iajEiX8qQEq6nBaa1/Q5sAw==" length="2442128" />
     </item>
+    <item>
+      <title>Version 1.2.0</title>
+      <pubDate>Mon, 04 May 2026 16:10:27 +0000</pubDate>
+      <sparkle:version>48</sparkle:version>
+      <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>- Eigenes Wörterbuch: Eigennamen und Fachbegriffe als Kontext für Whisper hinterlegen (Einstellungen → Transkription → Eigenes Wörterbuch)
+- Wählbare Eingangsquelle: Mikrofon fixieren statt automatischer Wechsel beim Einstecken von Kopfhörern (Einstellungen → Transkription → Mikrofon)
+- Kopier-Button in der Transkriptions-History plus Aufklapp-Funktion für längere Einträge (Einstellungen → History)
+- Rebrand: App heißt jetzt überall InnoWhisper (Menubar, Dock, Über-Dialog, DMG). Bestehende Permissions und Einstellungen bleiben erhalten</p>]]></description>
+      <enclosure
+        url="https://github.com/temutluer-glitch/whisperdictation/releases/download/v1.2.0/InnoWhisper-1.2.0.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="1XS5bu9Ol6FV+xZSGdR+XW5e4jfLs1Lr/drXk5H9Zi/tH+jg+opgN/peN9qLHOuOst+49c+VBx/BlZTZ8nTECQ==" length="2554596" />
+    </item>
   </channel>
 </rss>

@@ -35,8 +35,8 @@ targets:
         LSUIElement: true
         NSMicrophoneUsageDescription: "InnoWhisper nutzt dein Mikrofon, um Sprache für die Transkription aufzuzeichnen."
         NSAppleEventsUsageDescription: "InnoWhisper fügt transkribierten Text per Tastatur-Simulation in die aktive App ein."
-        CFBundleShortVersionString: "1.1.2"
-        CFBundleVersion: "21"
+        CFBundleShortVersionString: "1.2.0"
+        CFBundleVersion: "48"
         NSHumanReadableCopyright: "© 2026 Timur Mutluer"
         SUFeedURL: "${WD_FEED_URL}"
         SUPublicEDKey: "Em7ytxl6BZIiqy0vtdnlnIOan/WRv7vWPOI/CbmV/hE="
@@ -46,8 +46,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ${WD_BUNDLE_ID}
-        MARKETING_VERSION: "1.1.2"
-        CURRENT_PROJECT_VERSION: "21"
+        MARKETING_VERSION: "1.2.0"
+        CURRENT_PROJECT_VERSION: "48"
         SWIFT_VERSION: "5.9"
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_STYLE: Manual

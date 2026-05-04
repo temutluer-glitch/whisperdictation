@@ -37,7 +37,7 @@ Menu-Bar-Icon → **Einstellungen…** öffnet das Einstellungsfenster:
 3. Projekt generieren und öffnen:
 
 ```bash
-cd "/Users/timurmutluer/Desktop/Claude - Arbeitsordner/WhisperDictation"
+cd <repo-root>
 xcodegen generate
 open WhisperDictation.xcodeproj
 ```

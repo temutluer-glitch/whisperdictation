@@ -21,9 +21,7 @@ Jeder Schritt im Detail.
 
 ### 1. Ändern
 
-Repo: `/Users/timurmutluer/Desktop/Claude - Arbeitsordner/WhisperDictation`
-
-Wo welcher Code lebt:
+Im lokalen Repo-Ordner. Wo welcher Code lebt:
 
 | Was du ändern willst | Wo |
 |----------------------|-----|

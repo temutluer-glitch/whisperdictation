@@ -9,7 +9,7 @@ Du machst diese drei Schritte **genau einmal** auf deinem Mac:
 ### 1. Self-Signed Code-Signing-Cert erstellen
 
 ```bash
-cd "/Users/timurmutluer/Desktop/Claude - Arbeitsordner/WhisperDictation"
+cd <repo-root>
 ./scripts/setup-signing-cert.sh
 ```
 

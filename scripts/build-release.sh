@@ -103,6 +103,10 @@ ZIP_PATH="$OUT_DIR/WhisperDictation-$VERSION.zip"
 
 if [[ $BETA_MODE -eq 1 ]]; then
   TARGET="/Applications/WhisperDictation Beta.app"
+  if pgrep -f "$TARGET/Contents/MacOS/WhisperDictation" >/dev/null 2>&1; then
+    echo "fehler: laufende Beta-Instanz gefunden. Bitte erst beenden (Cmd+Q im Menubar-Menue)." >&2
+    exit 1
+  fi
   echo "==> Installiere nach $TARGET"
   rm -rf "$TARGET"
   ditto "$APP_PATH" "$TARGET"

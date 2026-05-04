@@ -104,14 +104,26 @@ ZIP_PATH="$OUT_DIR/InnoWhisper-$VERSION.zip"
 if [[ $BETA_MODE -eq 1 ]]; then
   TARGET="/Applications/InnoWhisper Beta.app"
   LEGACY_TARGET="/Applications/WhisperDictation Beta.app"
-  if pgrep -f "$TARGET/Contents/MacOS/WhisperDictation" >/dev/null 2>&1; then
-    echo "fehler: laufende Beta-Instanz gefunden. Bitte erst beenden (Cmd+Q im Menubar-Menue)." >&2
-    exit 1
-  fi
-  if pgrep -f "$LEGACY_TARGET/Contents/MacOS/WhisperDictation" >/dev/null 2>&1; then
-    echo "fehler: laufende Legacy-Beta gefunden ($LEGACY_TARGET). Bitte erst beenden." >&2
-    exit 1
-  fi
+
+  quit_running_beta() {
+    local bundle_path="$1"
+    local app_name
+    app_name="$(basename "$bundle_path" .app)"
+    if ! pgrep -f "$bundle_path/Contents/MacOS/WhisperDictation" >/dev/null 2>&1; then
+      return 0
+    fi
+    echo "==> Laufende Beta '$app_name' wird per Apple-Event beendet …"
+    osascript -e "tell application \"$app_name\" to quit" >/dev/null 2>&1 || true
+    for _ in 1 2 3 4 5; do
+      pgrep -f "$bundle_path/Contents/MacOS/WhisperDictation" >/dev/null 2>&1 || return 0
+      sleep 1
+    done
+    echo "fehler: Beta-Instanz '$app_name' reagiert nicht auf Quit. Bitte manuell im Menubar beenden." >&2
+    return 1
+  }
+
+  quit_running_beta "$TARGET" || exit 1
+  quit_running_beta "$LEGACY_TARGET" || exit 1
   echo "==> Installiere nach $TARGET"
   rm -rf "$TARGET"
   ditto "$APP_PATH" "$TARGET"

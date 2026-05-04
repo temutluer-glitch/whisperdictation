@@ -5,6 +5,7 @@ struct HistoryView: View {
     @EnvironmentObject private var history: TranscriptionHistory
     @State private var selectedID: UUID?
     @State private var justCopiedID: UUID?
+    @State private var expandedIDs: Set<UUID> = []
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -30,6 +31,8 @@ struct HistoryView: View {
                         HistoryRow(
                             entry: entry,
                             justCopied: justCopiedID == entry.id,
+                            isExpanded: expandedIDs.contains(entry.id),
+                            onToggleExpand: { toggleExpand(entry.id) },
                             onCopy: { copy(entry.processedText, markingID: entry.id) },
                             onCopyRaw: { copy(entry.rawText, markingID: entry.id) },
                             onDelete: { history.remove(entry.id) }
@@ -40,6 +43,14 @@ struct HistoryView: View {
             }
         }
         .padding()
+    }
+
+    private func toggleExpand(_ id: UUID) {
+        if expandedIDs.contains(id) {
+            expandedIDs.remove(id)
+        } else {
+            expandedIDs.insert(id)
+        }
     }
 
     private func copy(_ text: String, markingID id: UUID) {
@@ -59,6 +70,8 @@ struct HistoryView: View {
 private struct HistoryRow: View {
     let entry: HistoryEntry
     let justCopied: Bool
+    let isExpanded: Bool
+    let onToggleExpand: () -> Void
     let onCopy: () -> Void
     let onCopyRaw: () -> Void
     let onDelete: () -> Void
@@ -78,22 +91,37 @@ private struct HistoryRow: View {
                     Spacer()
                 }
                 Text(entry.processedText)
-                    .lineLimit(2)
+                    .lineLimit(isExpanded ? nil : 2)
                     .truncationMode(.tail)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { onToggleExpand() }
 
-            Button(action: onCopy) {
-                Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(justCopied ? .green : .primary)
-                    .frame(width: 18, height: 18)
+            VStack(spacing: 4) {
+                Button(action: onToggleExpand) {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18, height: 18)
+                }
+                .buttonStyle(.borderless)
+                .help(isExpanded ? "Einklappen" : "Vollständigen Text zeigen")
+
+                Button(action: onCopy) {
+                    Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(justCopied ? .green : .primary)
+                        .frame(width: 18, height: 18)
+                }
+                .buttonStyle(.borderless)
+                .help(justCopied ? "Kopiert" : "Text in Zwischenablage kopieren")
             }
-            .buttonStyle(.borderless)
-            .help(justCopied ? "Kopiert" : "Text in Zwischenablage kopieren")
         }
-        .contentShape(Rectangle())
         .contextMenu {
+            Button(isExpanded ? "Einklappen" : "Vollständigen Text zeigen") { onToggleExpand() }
             Button("Text kopieren") { onCopy() }
             if entry.rawText != entry.processedText {
                 Button("Rohtext kopieren") { onCopyRaw() }

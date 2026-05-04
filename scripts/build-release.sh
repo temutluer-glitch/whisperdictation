@@ -103,9 +103,18 @@ ZIP_PATH="$OUT_DIR/WhisperDictation-$VERSION.zip"
 
 if [[ $BETA_MODE -eq 1 ]]; then
   TARGET="/Applications/WhisperDictation Beta.app"
+  APP_DISPLAY_NAME="$(basename "$TARGET" .app)"
   if pgrep -f "$TARGET/Contents/MacOS/WhisperDictation" >/dev/null 2>&1; then
-    echo "fehler: laufende Beta-Instanz gefunden. Bitte erst beenden (Cmd+Q im Menubar-Menue)." >&2
-    exit 1
+    echo "==> Laufende Beta '$APP_DISPLAY_NAME' wird per Apple-Event beendet …"
+    osascript -e "tell application \"$APP_DISPLAY_NAME\" to quit" >/dev/null 2>&1 || true
+    for _ in 1 2 3 4 5; do
+      pgrep -f "$TARGET/Contents/MacOS/WhisperDictation" >/dev/null 2>&1 || break
+      sleep 1
+    done
+    if pgrep -f "$TARGET/Contents/MacOS/WhisperDictation" >/dev/null 2>&1; then
+      echo "fehler: Beta-Instanz reagiert nicht auf Quit. Bitte manuell im Menubar beenden." >&2
+      exit 1
+    fi
   fi
   echo "==> Installiere nach $TARGET"
   rm -rf "$TARGET"

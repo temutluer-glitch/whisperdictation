@@ -98,13 +98,32 @@ final class CursorOverlay {
         panel.setFrameOrigin(final)
     }
 
-    private func elementTopCenter() -> NSPoint? {
-        guard let element = focusedElement() else { return nil }
+    private func elementRole(_ element: AXUIElement) -> String {
+        var roleValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleValue) == .success else {
+            return "?"
+        }
+        return (roleValue as? String) ?? "?"
+    }
+
+    private static let textInputRoles: Set<String> = [
+        kAXTextFieldRole as String,
+        kAXTextAreaRole as String,
+        kAXComboBoxRole as String
+    ]
+
+    private func elementTopCenter() -> (NSPoint, String)? {
+        guard let element = focusedElement() else {
+            DebugLog.write("overlay element rejected reason=no-focused-element")
+            return nil
+        }
+        let role = elementRole(element)
 
         var posValue: AnyObject?
         var sizeValue: AnyObject?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &posValue) == .success,
               AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success else {
+            DebugLog.write("overlay element rejected role=\(role) reason=no-pos-or-size")
             return nil
         }
 
@@ -113,19 +132,35 @@ final class CursorOverlay {
         AXValueGetValue(posValue as! AXValue, .cgPoint, &pos)
         AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
 
-        if size.width < 20 || size.height < 12 { return nil }
-        if size.width > 1600 || size.height > 900 { return nil }
-        if pos.x == 0 && pos.y == 0 { return nil }
+        if size.width < 20 || size.height < 12 {
+            DebugLog.write("overlay element rejected role=\(role) reason=too-small size=\(Int(size.width))x\(Int(size.height))")
+            return nil
+        }
+        if size.width > 1600 || size.height > 900 {
+            DebugLog.write("overlay element rejected role=\(role) reason=too-large size=\(Int(size.width))x\(Int(size.height))")
+            return nil
+        }
+        if pos.x == 0 && pos.y == 0 {
+            DebugLog.write("overlay element rejected role=\(role) reason=origin-zero")
+            return nil
+        }
 
         let topCenterAX = CGPoint(x: pos.x + size.width / 2, y: pos.y)
-        return convertAXToScreenCoordinates(topCenterAX)
+        let screenPoint = convertAXToScreenCoordinates(topCenterAX)
+        DebugLog.write("overlay element candidate role=\(role) axPos=\(Int(pos.x)),\(Int(pos.y)) size=\(Int(size.width))x\(Int(size.height)) screen=\(Int(screenPoint.x)),\(Int(screenPoint.y))")
+        return (screenPoint, role)
     }
 
-    private func cursorScreenPosition() -> NSPoint? {
-        guard let element = focusedElement() else { return nil }
+    private func cursorScreenPosition() -> (NSPoint, String)? {
+        guard let element = focusedElement() else {
+            DebugLog.write("overlay caret rejected reason=no-focused-element")
+            return nil
+        }
+        let role = elementRole(element)
 
         var rangeValue: AnyObject?
         guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeValue) == .success else {
+            DebugLog.write("overlay caret rejected role=\(role) reason=no-selected-range")
             return nil
         }
 
@@ -136,20 +171,33 @@ final class CursorOverlay {
             rangeValue!,
             &boundsValue
         ) == .success else {
+            DebugLog.write("overlay caret rejected role=\(role) reason=no-bounds-for-range")
             return nil
         }
 
         var rect = CGRect.zero
         guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect) else {
+            DebugLog.write("overlay caret rejected role=\(role) reason=bounds-not-cgrect")
             return nil
         }
 
-        if rect.height < 6 || rect.height > 200 { return nil }
-        if rect.origin.x == 0 && rect.origin.y == 0 { return nil }
-        if !rect.origin.x.isFinite || !rect.origin.y.isFinite { return nil }
+        if rect.height < 6 || rect.height > 200 {
+            DebugLog.write("overlay caret rejected role=\(role) reason=bad-height h=\(Int(rect.height))")
+            return nil
+        }
+        if rect.origin.x == 0 && rect.origin.y == 0 {
+            DebugLog.write("overlay caret rejected role=\(role) reason=origin-zero")
+            return nil
+        }
+        if !rect.origin.x.isFinite || !rect.origin.y.isFinite {
+            DebugLog.write("overlay caret rejected role=\(role) reason=non-finite")
+            return nil
+        }
 
         let topCenter = CGPoint(x: rect.midX, y: rect.minY)
-        return convertAXToScreenCoordinates(topCenter)
+        let screenPoint = convertAXToScreenCoordinates(topCenter)
+        DebugLog.write("overlay caret candidate role=\(role) axRect=\(Int(rect.origin.x)),\(Int(rect.origin.y))+\(Int(rect.width))x\(Int(rect.height)) screen=\(Int(screenPoint.x)),\(Int(screenPoint.y))")
+        return (screenPoint, role)
     }
 
     private func focusedElement() -> AXUIElement? {
@@ -191,15 +239,33 @@ final class CursorOverlay {
 
     private func resolveAnchor() -> NSPoint {
         let mouse = NSEvent.mouseLocation
-        let maxDistance: CGFloat = 350
+        let safetyMaxDistance: CGFloat = 350
 
-        if let p = cursorScreenPosition(), isPlausible(p), distance(p, mouse) < maxDistance {
-            DebugLog.write("overlay anchor=caret p=\(Int(p.x)),\(Int(p.y)) mouse=\(Int(mouse.x)),\(Int(mouse.y))")
-            return p
+        if let (p, role) = cursorScreenPosition() {
+            if !isPlausible(p) {
+                DebugLog.write("overlay caret rejected reason=not-plausible p=\(Int(p.x)),\(Int(p.y))")
+            } else {
+                let d = distance(p, mouse)
+                let isTextInput = Self.textInputRoles.contains(role)
+                if isTextInput || d < safetyMaxDistance {
+                    DebugLog.write("overlay anchor=caret p=\(Int(p.x)),\(Int(p.y)) mouse=\(Int(mouse.x)),\(Int(mouse.y)) dist=\(Int(d)) role=\(role) trustedRole=\(isTextInput)")
+                    return p
+                }
+                DebugLog.write("overlay caret rejected reason=too-far p=\(Int(p.x)),\(Int(p.y)) mouse=\(Int(mouse.x)),\(Int(mouse.y)) dist=\(Int(d)) max=\(Int(safetyMaxDistance)) role=\(role)")
+            }
         }
-        if let p = elementTopCenter(), isPlausible(p), distance(p, mouse) < maxDistance {
-            DebugLog.write("overlay anchor=element p=\(Int(p.x)),\(Int(p.y)) mouse=\(Int(mouse.x)),\(Int(mouse.y))")
-            return p
+        if let (p, role) = elementTopCenter() {
+            if !isPlausible(p) {
+                DebugLog.write("overlay element rejected reason=not-plausible p=\(Int(p.x)),\(Int(p.y))")
+            } else {
+                let d = distance(p, mouse)
+                let isTextInput = Self.textInputRoles.contains(role)
+                if isTextInput || d < safetyMaxDistance {
+                    DebugLog.write("overlay anchor=element p=\(Int(p.x)),\(Int(p.y)) mouse=\(Int(mouse.x)),\(Int(mouse.y)) dist=\(Int(d)) role=\(role) trustedRole=\(isTextInput)")
+                    return p
+                }
+                DebugLog.write("overlay element rejected reason=too-far p=\(Int(p.x)),\(Int(p.y)) mouse=\(Int(mouse.x)),\(Int(mouse.y)) dist=\(Int(d)) max=\(Int(safetyMaxDistance)) role=\(role)")
+            }
         }
         let fallback = mouseAnchor()
         DebugLog.write("overlay anchor=mouse p=\(Int(fallback.x)),\(Int(fallback.y))")

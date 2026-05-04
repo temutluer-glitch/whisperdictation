@@ -89,7 +89,9 @@ enum TextInjector {
 
 enum PermissionHelper {
     static func checkAccessibilityOnLaunch() {
-        let trusted = AXIsProcessTrustedWithOptions(nil)
+        let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        let options = [promptKey: true] as CFDictionary
+        let trusted = AXIsProcessTrustedWithOptions(options)
         if !trusted {
             let alert = NSAlert()
             alert.messageText = "Bedienungshilfen-Zugriff erforderlich"

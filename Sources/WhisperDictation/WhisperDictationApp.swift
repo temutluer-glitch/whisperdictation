@@ -1,5 +1,33 @@
 import SwiftUI
 import AppKit
+import ApplicationServices
+
+@MainActor
+final class AccessibilityTrustObserver: ObservableObject {
+    @Published private(set) var isTrusted: Bool = AXIsProcessTrusted()
+    private var timer: Timer?
+
+    init() {
+        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                let trusted = AXIsProcessTrusted()
+                if self.isTrusted != trusted {
+                    self.isTrusted = trusted
+                }
+            }
+        }
+    }
+
+    deinit {
+        timer?.invalidate()
+    }
+
+    func openAccessibilitySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
+        NSWorkspace.shared.open(url)
+    }
+}
 
 @MainActor
 final class AppServices: ObservableObject {
@@ -18,6 +46,7 @@ struct WhisperDictationApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var services = AppServices()
     @StateObject private var updateController = UpdateController()
+    @StateObject private var axTrust = AccessibilityTrustObserver()
 
     var body: some Scene {
         MenuBarExtra {
@@ -26,6 +55,7 @@ struct WhisperDictationApp: App {
                 .environmentObject(services.settingsStore)
                 .environmentObject(services.coordinator)
                 .environmentObject(updateController)
+                .environmentObject(axTrust)
         } label: {
             Image(systemName: services.appState.menuBarIconName)
                 .symbolRenderingMode(.hierarchical)
@@ -59,8 +89,16 @@ struct MenuContent: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var coordinator: DictationCoordinator
     @EnvironmentObject private var updater: UpdateController
+    @EnvironmentObject private var axTrust: AccessibilityTrustObserver
 
     var body: some View {
+        if !axTrust.isTrusted {
+            Button("Bedienungshilfen fehlen, hier öffnen") {
+                axTrust.openAccessibilitySettings()
+            }
+            Divider()
+        }
+
         Text(statusLine)
             .font(.system(.body, design: .rounded))
 

@@ -9,6 +9,28 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
+BETA_MODE=0
+for arg in "$@"; do
+  case "$arg" in
+    --beta) BETA_MODE=1 ;;
+    *) echo "unbekanntes Argument: $arg"; exit 1 ;;
+  esac
+done
+
+if [[ $BETA_MODE -eq 1 ]]; then
+  echo "==> Beta-Variante"
+  export WD_BUNDLE_ID="com.innosolv.WhisperDictation.beta"
+  export WD_DISPLAY_NAME="WhisperDictation Beta"
+  export WD_APPICON="AppIconBeta"
+  export WD_SPARKLE_ENABLED="false"
+  export WD_FEED_URL="about:blank"
+  echo "    Bundle-ID:    $WD_BUNDLE_ID"
+  echo "    Display-Name: $WD_DISPLAY_NAME"
+  echo "    AppIcon:      $WD_APPICON"
+  echo "==> Generiere Beta-Icon"
+  swift "$REPO_ROOT/tools/generate-beta-icon.swift"
+fi
+
 CERT_NAME="${CERT_NAME:-WhisperDictation Developer}"
 DD="${DERIVED_DATA:-/tmp/wd-build}"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/dist}"
@@ -79,17 +101,30 @@ codesign -dv --verbose=2 "$APP_PATH" 2>&1 | grep -E "(Identifier|Authority|TeamI
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
 ZIP_PATH="$OUT_DIR/WhisperDictation-$VERSION.zip"
 
-echo "==> Zippe für Sparkle …"
-rm -f "$ZIP_PATH"
-ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
+if [[ $BETA_MODE -eq 1 ]]; then
+  TARGET="/Applications/WhisperDictation Beta.app"
+  echo "==> Installiere nach $TARGET"
+  rm -rf "$TARGET"
+  ditto "$APP_PATH" "$TARGET"
+  echo ""
+  echo "Fertig (Beta):"
+  echo "  Source:   $APP_PATH"
+  echo "  Install:  $TARGET"
+  echo "  Version:  $VERSION"
+  echo "  Bundle:   $WD_BUNDLE_ID"
+else
+  echo "==> Zippe für Sparkle …"
+  rm -f "$ZIP_PATH"
+  ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
-DMG_PATH="$OUT_DIR/WhisperDictation-$VERSION.dmg"
-echo "==> Baue DMG für manuelle Installation …"
-bash "$REPO_ROOT/scripts/make-dmg.sh"
+  DMG_PATH="$OUT_DIR/WhisperDictation-$VERSION.dmg"
+  echo "==> Baue DMG für manuelle Installation …"
+  bash "$REPO_ROOT/scripts/make-dmg.sh"
 
-echo ""
-echo "Fertig:"
-echo "  App: $APP_PATH"
-echo "  Zip: $ZIP_PATH"
-echo "  DMG: $DMG_PATH"
-echo "  Version: $VERSION"
+  echo ""
+  echo "Fertig:"
+  echo "  App: $APP_PATH"
+  echo "  Zip: $ZIP_PATH"
+  echo "  DMG: $DMG_PATH"
+  echo "  Version: $VERSION"
+fi

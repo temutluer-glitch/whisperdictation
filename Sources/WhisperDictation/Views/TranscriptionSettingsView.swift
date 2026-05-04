@@ -37,6 +37,24 @@ struct TranscriptionSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Section("Eigenes Wörterbuch") {
+                TextEditor(text: $settings.customVocabulary)
+                    .font(.system(.body, design: .default))
+                    .frame(minHeight: 110)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                    )
+                Text("Eigennamen, Fachbegriffe oder Abkürzungen, die Whisper kennen soll. Komma- oder zeilengetrennt, etwa 200 Wörter maximal. Wird als Kontext mit jeder Aufnahme an Whisper geschickt.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let preview = DictationCoordinator.normalizedVocabularyPrompt(settings.customVocabulary) {
+                    Text("Aktiv: \(preview.count) Zeichen, ~\(max(1, preview.count / 4)) Tokens")
+                        .font(.caption2)
+                        .foregroundStyle(.tint)
+                }
+            }
         }
         .formStyle(.grouped)
         .padding()

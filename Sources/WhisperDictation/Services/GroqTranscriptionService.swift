@@ -17,7 +17,7 @@ enum GroqError: LocalizedError {
 struct GroqTranscriptionService {
     let apiKey: String
 
-    func transcribe(fileURL: URL, model: String, language: String?) async throws -> String {
+    func transcribe(fileURL: URL, model: String, language: String?, prompt: String? = nil) async throws -> String {
         guard !apiKey.isEmpty else { throw GroqError.missingAPIKey }
 
         var request = URLRequest(url: URL(string: "https://api.groq.com/openai/v1/audio/transcriptions")!)
@@ -47,6 +47,12 @@ struct GroqTranscriptionService {
             append("--\(boundary)\r\n")
             append("Content-Disposition: form-data; name=\"language\"\r\n\r\n")
             append("\(language)\r\n")
+        }
+
+        if let prompt, !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            append("--\(boundary)\r\n")
+            append("Content-Disposition: form-data; name=\"prompt\"\r\n\r\n")
+            append("\(prompt)\r\n")
         }
 
         append("--\(boundary)\r\n")

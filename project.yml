@@ -31,6 +31,7 @@ targets:
     info:
       path: SupportingFiles/Info.plist
       properties:
+        CFBundleDisplayName: "${WD_DISPLAY_NAME}"
         LSUIElement: true
         NSMicrophoneUsageDescription: "WhisperDictation nutzt dein Mikrofon, um Sprache für die Transkription aufzuzeichnen."
         NSAppleEventsUsageDescription: "WhisperDictation fügt transkribierten Text per Tastatur-Simulation in die aktive App ein."
@@ -54,4 +55,3 @@ targets:
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_ENTITLEMENTS: Sources/WhisperDictation/WhisperDictation.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: ${WD_APPICON}
-        INFOPLIST_KEY_CFBundleDisplayName: ${WD_DISPLAY_NAME}

@@ -17,5 +17,23 @@
         type="application/octet-stream"
         sparkle:edSignature="6ZI8EXfgC5siKJQkFVWbR7dzNQcJTeMC1L/JhIUYPXmFRcl1BFsgpOjCc7xya208IqG6RCO1FzQs6REZTypNAg==" length="2434059" />
     </item>
+    <item>
+      <title>Version 1.1.2</title>
+      <pubDate>Mon, 04 May 2026 11:18:55 +0000</pubDate>
+      <sparkle:version>21</sparkle:version>
+      <sparkle:shortVersionString>1.1.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>Stabilität & Installation:
+
+- Sprechblase trifft jetzt zuverlässig das aktive Eingabefeld, auch wenn die Maus weit davon entfernt ist (besonders relevant auf Ultrawide-Monitoren).
+- Bedienungshilfen-Permission wird beim ersten Start automatisch via macOS-Standardprompt angefordert. Falls die Permission verloren geht, erscheint im Menübar-Dropdown ein Hinweis "Bedienungshilfen fehlen, hier öffnen" mit direktem Link in die Settings.
+- Transkribierter Text wird wieder zuverlässig in die aktive App eingefügt (Hintergrund: Permission-Verlust nach lokalem Reinstall).
+- Neuer Drag-and-Drop-DMG-Installer für komfortable Erstinstallation, ZIP-Variante bleibt parallel verfügbar (Sparkle nutzt weiterhin ZIP für Auto-Updates).
+- Erweitertes Diagnose-Logging der Sprechblasen-Positionierung in /tmp/whisperdictation.log.</p>]]></description>
+      <enclosure
+        url="https://github.com/temutluer-glitch/whisperdictation/releases/download/v1.1.2/WhisperDictation-1.1.2.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="CiF9sH59s5+YxayL5jKw8UAJ5PGkJrLJHDcccLnzzdJNLL8k7ChJfk634zy/XQ9iajEiX8qQEq6nBaa1/Q5sAw==" length="2442128" />
+    </item>
   </channel>
 </rss>

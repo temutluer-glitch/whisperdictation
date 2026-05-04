@@ -18,5 +18,17 @@
         type="application/octet-stream"
         sparkle:edSignature="yMRCRIHT2LGyUfbOwYRZk+48BFqB7Rv3i81bBR0ilX420KONKCOWIhtlkCOygWTBXFeKqitrJnUYd8/C5FGkDA==" length="2424309" />
     </item>
+    <item>
+      <title>Version 1.1.1</title>
+      <pubDate>Mon, 04 May 2026 09:21:23 +0000</pubDate>
+      <sparkle:version>16</sparkle:version>
+      <sparkle:shortVersionString>1.1.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>Fix: working signing for self-signed bundles. v1.1.0 binary konnte wegen Library-Validation nicht starten. Diese Version laeuft.</p>]]></description>
+      <enclosure
+        url="https://github.com/temutluer-glitch/whisperdictation/releases/download/v1.1.1/WhisperDictation-1.1.1.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="6ZI8EXfgC5siKJQkFVWbR7dzNQcJTeMC1L/JhIUYPXmFRcl1BFsgpOjCc7xya208IqG6RCO1FzQs6REZTypNAg==" length="2434059" />
+    </item>
   </channel>
 </rss>

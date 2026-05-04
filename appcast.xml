@@ -6,19 +6,6 @@
     <description>WhisperDictation Update Feed</description>
     <language>de</language>
     <item>
-      <title>Version 1.1.0</title>
-      <pubDate>Mon, 04 May 2026 08:44:16 +0000</pubDate>
-      <sparkle:version>13</sparkle:version>
-      <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<p>Erstes Team-Release mit Auto-Updates über Sparkle, stabile Code-Signatur (Permissions bleiben erhalten), und gefixter Sprechblasen-Position auf Multi-Monitor-Setups.</p>]]></description>
-      <enclosure
-        url="https://github.com/temutluer-glitch/whisperdictation/releases/download/v1.1.0/WhisperDictation-1.1.0.zip"
-        length="2424309"
-        type="application/octet-stream"
-        sparkle:edSignature="yMRCRIHT2LGyUfbOwYRZk+48BFqB7Rv3i81bBR0ilX420KONKCOWIhtlkCOygWTBXFeKqitrJnUYd8/C5FGkDA==" length="2424309" />
-    </item>
-    <item>
       <title>Version 1.1.1</title>
       <pubDate>Mon, 04 May 2026 09:21:23 +0000</pubDate>
       <sparkle:version>16</sparkle:version>

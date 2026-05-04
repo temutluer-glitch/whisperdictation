@@ -17,6 +17,7 @@ final class SettingsStore: ObservableObject {
         static let llmModel = "llmModel"
         static let llmPresets = "llmPresets"
         static let hasGroqKey = "hasGroqKey"
+        static let customVocabulary = "customVocabulary"
     }
 
     @Published var hotkeyBindings: [HotkeyBinding] {
@@ -63,6 +64,10 @@ final class SettingsStore: ObservableObject {
             KeychainStore.set(groqAPIKey, for: KeychainStore.Account.groqAPIKey)
             UserDefaults.standard.set(!groqAPIKey.isEmpty, forKey: Key.hasGroqKey)
         }
+    }
+
+    @Published var customVocabulary: String {
+        didSet { UserDefaults.standard.set(customVocabulary, forKey: Key.customVocabulary) }
     }
 
     func preset(for binding: HotkeyBinding) -> PromptPreset? {
@@ -113,6 +118,7 @@ final class SettingsStore: ObservableObject {
         }
 
         self.groqAPIKey = KeychainStore.get(KeychainStore.Account.groqAPIKey) ?? ""
+        self.customVocabulary = defaults.string(forKey: Key.customVocabulary) ?? ""
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

@@ -121,6 +121,7 @@ final class DictationCoordinator: ObservableObject {
         let apiKey = settingsStore.groqAPIKey
         let llmModel = settingsStore.llmModel
         let outputMode = settingsStore.outputMode
+        let vocabularyPrompt = Self.normalizedVocabularyPrompt(settingsStore.customVocabulary)
         let binding = settingsStore.binding(forID: bindingID) ?? settingsStore.defaultBinding
         let preset = binding.flatMap { settingsStore.preset(for: $0) }
 
@@ -130,7 +131,8 @@ final class DictationCoordinator: ObservableObject {
                 let raw = try await transcriber.transcribe(
                     fileURL: stopResult.url,
                     model: model,
-                    language: languageHint.isEmpty ? nil : languageHint
+                    language: languageHint.isEmpty ? nil : languageHint,
+                    prompt: vocabularyPrompt
                 )
 
                 try? FileManager.default.removeItem(at: stopResult.url)
@@ -168,6 +170,15 @@ final class DictationCoordinator: ObservableObject {
                 activeBindingID = nil
             }
         }
+    }
+
+    static func normalizedVocabularyPrompt(_ raw: String) -> String? {
+        let terms = raw
+            .components(separatedBy: CharacterSet.newlines.union(CharacterSet(charactersIn: ",;")))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !terms.isEmpty else { return nil }
+        return terms.joined(separator: ", ")
     }
 
     private static func isLikelyHallucination(_ text: String) -> Bool {

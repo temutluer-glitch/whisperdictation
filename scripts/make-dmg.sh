@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Erstellt eine DMG-Disk-Image mit WhisperDictation.app + Applications-Symlink +
+# Erstellt eine DMG-Disk-Image mit InnoWhisper.app + Applications-Symlink +
 # Pfeil-Background, fertig fuer Drag-and-Drop-Install.
 # Wird nach build-release.sh aufgerufen.
 #
 # Nutzt das vendored create-dmg in tools/create-dmg, weil Hand-rolled
 # AppleScript fuer "set background picture" auf macOS Sequoia still failt.
 #
-# Ergebnis: dist/WhisperDictation-<VERSION>.dmg, signiert mit demselben Cert.
+# Ergebnis: dist/InnoWhisper-<VERSION>.dmg, signiert mit demselben Cert.
 
 set -euo pipefail
 
@@ -17,7 +17,8 @@ CERT_NAME="${CERT_NAME:-WhisperDictation Developer}"
 DD="${DERIVED_DATA:-/tmp/wd-build}"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/dist}"
 APP_PATH="$DD/Build/Products/Release/WhisperDictation.app"
-VOL_NAME="WhisperDictation"
+VOL_NAME="InnoWhisper"
+APP_NAME_IN_DMG="InnoWhisper.app"
 CREATE_DMG="$REPO_ROOT/tools/create-dmg/create-dmg"
 
 if [[ ! -d "$APP_PATH" ]]; then
@@ -32,7 +33,7 @@ if [[ ! -x "$CREATE_DMG" ]]; then
 fi
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
-DMG_PATH="$OUT_DIR/WhisperDictation-$VERSION.dmg"
+DMG_PATH="$OUT_DIR/InnoWhisper-$VERSION.dmg"
 
 STAGE_PARENT="$(mktemp -d)"
 SRC_DIR="$STAGE_PARENT/source"
@@ -54,7 +55,7 @@ if [[ -d "/Volumes/$VOL_NAME" ]]; then
 fi
 
 echo "==> Source-Folder vorbereiten ..."
-ditto "$APP_PATH" "$SRC_DIR/WhisperDictation.app"
+ditto "$APP_PATH" "$SRC_DIR/$APP_NAME_IN_DMG"
 
 echo "==> Background-Image generieren ..."
 SWIFT_GEN="$STAGE_PARENT/gen-bg.swift"
@@ -127,7 +128,7 @@ echo "==> Baue DMG via create-dmg ..."
   --window-pos 200 120 \
   --window-size 600 320 \
   --icon-size 96 \
-  --icon "WhisperDictation.app" 150 160 \
+  --icon "$APP_NAME_IN_DMG" 150 160 \
   --app-drop-link 450 160 \
   --no-internet-enable \
   --hdiutil-quiet \

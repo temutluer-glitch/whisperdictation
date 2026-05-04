@@ -38,7 +38,7 @@ struct GeneralSettingsView: View {
             }
 
             Section("Über") {
-                Text("WhisperDictation – systemweite Diktierfunktion")
+                Text("InnoWhisper – systemweite Diktierfunktion")
                     .foregroundStyle(.secondary)
                 Text("Nutzt Groq Whisper API für Transkription und optional Groq Chat für LLM-Postprocessing.")
                     .font(.caption)

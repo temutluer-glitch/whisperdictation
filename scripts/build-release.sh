@@ -20,7 +20,7 @@ done
 if [[ $BETA_MODE -eq 1 ]]; then
   echo "==> Beta-Variante"
   export WD_BUNDLE_ID="com.innosolv.WhisperDictation.beta"
-  export WD_DISPLAY_NAME="WhisperDictation Beta"
+  export WD_DISPLAY_NAME="InnoWhisper Beta"
   export WD_APPICON="AppIconBeta"
   export WD_SPARKLE_ENABLED="false"
   export WD_FEED_URL="about:blank"
@@ -99,17 +99,26 @@ codesign -dv --verbose=2 "$APP_PATH" 2>&1 | grep -E "(Identifier|Authority|TeamI
 
 # Version aus Info.plist ziehen
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
-ZIP_PATH="$OUT_DIR/WhisperDictation-$VERSION.zip"
+ZIP_PATH="$OUT_DIR/InnoWhisper-$VERSION.zip"
 
 if [[ $BETA_MODE -eq 1 ]]; then
-  TARGET="/Applications/WhisperDictation Beta.app"
+  TARGET="/Applications/InnoWhisper Beta.app"
+  LEGACY_TARGET="/Applications/WhisperDictation Beta.app"
   if pgrep -f "$TARGET/Contents/MacOS/WhisperDictation" >/dev/null 2>&1; then
     echo "fehler: laufende Beta-Instanz gefunden. Bitte erst beenden (Cmd+Q im Menubar-Menue)." >&2
+    exit 1
+  fi
+  if pgrep -f "$LEGACY_TARGET/Contents/MacOS/WhisperDictation" >/dev/null 2>&1; then
+    echo "fehler: laufende Legacy-Beta gefunden ($LEGACY_TARGET). Bitte erst beenden." >&2
     exit 1
   fi
   echo "==> Installiere nach $TARGET"
   rm -rf "$TARGET"
   ditto "$APP_PATH" "$TARGET"
+  if [[ -d "$LEGACY_TARGET" ]]; then
+    echo "==> Entferne alte Beta unter $LEGACY_TARGET"
+    rm -rf "$LEGACY_TARGET"
+  fi
   echo ""
   echo "Fertig (Beta):"
   echo "  Source:   $APP_PATH"
@@ -121,7 +130,7 @@ else
   rm -f "$ZIP_PATH"
   ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
-  DMG_PATH="$OUT_DIR/WhisperDictation-$VERSION.dmg"
+  DMG_PATH="$OUT_DIR/InnoWhisper-$VERSION.dmg"
   echo "==> Baue DMG für manuelle Installation …"
   bash "$REPO_ROOT/scripts/make-dmg.sh"
 

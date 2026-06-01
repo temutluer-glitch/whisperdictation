@@ -50,5 +50,23 @@
         type="application/octet-stream"
         sparkle:edSignature="1XS5bu9Ol6FV+xZSGdR+XW5e4jfLs1Lr/drXk5H9Zi/tH+jg+opgN/peN9qLHOuOst+49c+VBx/BlZTZ8nTECQ==" length="2554596" />
     </item>
+    <item>
+      <title>Version 1.2.1</title>
+      <pubDate>Mon, 01 Jun 2026 11:26:49 +0000</pubDate>
+      <sparkle:version>52</sparkle:version>
+      <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>Apple-notarisiert.
+
+Ab dieser Version ist InnoWhisper vollständig Apple-notarisiert. Neue Mitarbeiter laden die DMG einfach herunter und installieren — keine Sicherheitswarnungen mehr.
+
+Wichtig für bestehende Installationen: Mit diesem Update wechseln wir gleichzeitig auf das offizielle Apple-Cert. Dadurch musst du nach dem Update einmalig die Bedienungshilfen-Berechtigung neu erteilen (Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen → InnoWhisper aktivieren). Die App zeigt dir den Hinweis dazu im Menübar-Dropdown an. Mikrofon-Berechtigung wird beim nächsten Hotkey-Druck neu abgefragt. Danach laufen alle künftigen Updates wieder unbemerkt.
+
+Keine Änderung an Funktionen oder Hotkeys.</p>]]></description>
+      <enclosure
+        url="https://github.com/temutluer-glitch/whisperdictation/releases/download/v1.2.1/InnoWhisper-1.2.1.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="B6U9r54w/C3KC5nP6L/tSqZHFINiU4LEtme81DPK58FDme84arDs706LUmbDQcTnv2sLLTDea0Th5h2lXwVgBw==" length="2525336" />
+    </item>
   </channel>
 </rss>

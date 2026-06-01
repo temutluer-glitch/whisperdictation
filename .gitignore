@@ -33,6 +33,7 @@ project.generated.yml
 
 # User secrets (should be in Keychain anyway, but just in case)
 *.env
+.env.*
 secrets.json
 
 # Release artifacts

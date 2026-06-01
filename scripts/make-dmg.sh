@@ -13,7 +13,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-CERT_NAME="${CERT_NAME:-WhisperDictation Developer}"
+CERT_NAME="${CERT_NAME:-Developer ID Application: Timur Eren Mutluer (N5QKANW6QY)}"
 DD="${DERIVED_DATA:-/tmp/wd-build}"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/dist}"
 APP_PATH="$DD/Build/Products/Release/WhisperDictation.app"

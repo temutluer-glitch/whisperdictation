@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Baut WhisperDictation als Release-.app und signiert sie mit dem stabilen
-# Self-Signed-Cert "WhisperDictation Developer".
+# Baut InnoWhisper als Release-.app, signiert mit Apple Developer ID und
+# notarisiert via xcrun notarytool. Beta-Builds (--beta) bleiben self-signed
+# weil sie nur lokal installiert werden.
 #
-# Voraussetzung: scripts/setup-signing-cert.sh wurde einmalig ausgeführt.
+# Voraussetzung Produktion:
+#   - Developer ID Application Cert im Keychain (via Xcode → Settings → Accounts)
+#   - .env.notarization mit APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+# Voraussetzung Beta:
+#   - Self-Signed Cert "WhisperDictation Developer" (scripts/setup-signing-cert.sh)
 
 set -euo pipefail
 
@@ -31,7 +36,14 @@ if [[ $BETA_MODE -eq 1 ]]; then
   swift "$REPO_ROOT/tools/generate-beta-icon.swift"
 fi
 
-CERT_NAME="${CERT_NAME:-WhisperDictation Developer}"
+# Produktion: Developer ID (notarisierbar). Beta: weiterhin self-signed.
+if [[ $BETA_MODE -eq 1 ]]; then
+  CERT_NAME="${CERT_NAME:-WhisperDictation Developer}"
+else
+  CERT_NAME="${CERT_NAME:-Developer ID Application: Timur Eren Mutluer (N5QKANW6QY)}"
+fi
+export CERT_NAME
+
 DD="${DERIVED_DATA:-/tmp/wd-build}"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/dist}"
 SCHEME="WhisperDictation"
@@ -71,6 +83,14 @@ fi
 
 ENTITLEMENTS="$REPO_ROOT/Sources/WhisperDictation/WhisperDictation.entitlements"
 
+# Secure-Timestamp Pflicht für Notarisierung. Beta-Builds (self-signed) können
+# das aber nicht — Apple's TSA verweigert ohne Developer ID. Daher Modus-abhängig.
+if [[ $BETA_MODE -eq 1 ]]; then
+  TIMESTAMP_FLAG="--timestamp=none"
+else
+  TIMESTAMP_FLAG="--timestamp"
+fi
+
 echo "==> Re-Sign mit '$CERT_NAME' …"
 SPARKLE_FW="$APP_PATH/Contents/Frameworks/Sparkle.framework"
 
@@ -84,12 +104,12 @@ find "$SPARKLE_FW" -name "*.cstemp" -delete 2>/dev/null || true
 # Sparkle.framework rekursiv mit Deep signen — re-signiert alle nested
 # XPC services, Updater.app, Autoupdate consistent mit unserer Identity.
 echo "    Sign: Sparkle.framework (deep)"
-codesign --force --deep --options=runtime --timestamp=none \
+codesign --force --deep --options=runtime $TIMESTAMP_FLAG \
   --sign "$CERT_NAME" "$SPARKLE_FW"
 
 # App-Bundle als letztes (mit Entitlements, ohne deep — Frameworks sind schon korrekt)
 echo "    Sign: WhisperDictation.app"
-codesign --force --options=runtime --timestamp=none \
+codesign --force --options=runtime $TIMESTAMP_FLAG \
   --entitlements "$ENTITLEMENTS" \
   --sign "$CERT_NAME" "$APP_PATH"
 
@@ -138,7 +158,41 @@ if [[ $BETA_MODE -eq 1 ]]; then
   echo "  Version:  $VERSION"
   echo "  Bundle:   $WD_BUNDLE_ID"
 else
-  echo "==> Zippe für Sparkle …"
+  # Notarisierung: Credentials laden
+  NOTARIZE_ENV="$REPO_ROOT/.env.notarization"
+  if [[ ! -f "$NOTARIZE_ENV" ]]; then
+    echo "fehler: $NOTARIZE_ENV fehlt. Datei mit APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID anlegen."
+    exit 1
+  fi
+  # shellcheck disable=SC1090
+  set -a; . "$NOTARIZE_ENV"; set +a
+  if [[ -z "${APPLE_ID:-}" || -z "${APPLE_APP_SPECIFIC_PASSWORD:-}" || -z "${APPLE_TEAM_ID:-}" ]]; then
+    echo "fehler: APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID nicht gesetzt in $NOTARIZE_ENV"
+    exit 1
+  fi
+
+  echo "==> .app für Notarisierung zippen …"
+  NOTARIZE_ZIP="$OUT_DIR/.notarize-app-$VERSION.zip"
+  rm -f "$NOTARIZE_ZIP"
+  ditto -c -k --keepParent "$APP_PATH" "$NOTARIZE_ZIP"
+
+  echo "==> Submit .app an Apple Notary (kann 2-15 Min dauern) …"
+  if ! xcrun notarytool submit "$NOTARIZE_ZIP" \
+        --apple-id "$APPLE_ID" \
+        --team-id "$APPLE_TEAM_ID" \
+        --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+        --wait; then
+    echo "fehler: Notarisierung der .app abgelehnt. Detail-Log via 'xcrun notarytool log <submission-id>' abrufen."
+    rm -f "$NOTARIZE_ZIP"
+    exit 1
+  fi
+  rm -f "$NOTARIZE_ZIP"
+
+  echo "==> Staple .app …"
+  xcrun stapler staple "$APP_PATH"
+  xcrun stapler validate "$APP_PATH"
+
+  echo "==> Zippe gestaplte .app für Sparkle …"
   rm -f "$ZIP_PATH"
   ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
@@ -146,8 +200,22 @@ else
   echo "==> Baue DMG für manuelle Installation …"
   bash "$REPO_ROOT/scripts/make-dmg.sh"
 
+  echo "==> Submit DMG an Apple Notary …"
+  if ! xcrun notarytool submit "$DMG_PATH" \
+        --apple-id "$APPLE_ID" \
+        --team-id "$APPLE_TEAM_ID" \
+        --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+        --wait; then
+    echo "fehler: Notarisierung der DMG abgelehnt."
+    exit 1
+  fi
+
+  echo "==> Staple DMG …"
+  xcrun stapler staple "$DMG_PATH"
+  xcrun stapler validate "$DMG_PATH"
+
   echo ""
-  echo "Fertig:"
+  echo "Fertig (notarisiert + gestapelt):"
   echo "  App: $APP_PATH"
   echo "  Zip: $ZIP_PATH"
   echo "  DMG: $DMG_PATH"

@@ -68,5 +68,21 @@ Keine Änderung an Funktionen oder Hotkeys.</p>]]></description>
         type="application/octet-stream"
         sparkle:edSignature="B6U9r54w/C3KC5nP6L/tSqZHFINiU4LEtme81DPK58FDme84arDs706LUmbDQcTnv2sLLTDea0Th5h2lXwVgBw==" length="2525336" />
     </item>
+    <item>
+      <title>Version 1.2.2</title>
+      <pubDate>Mon, 01 Jun 2026 11:40:26 +0000</pubDate>
+      <sparkle:version>55</sparkle:version>
+      <sparkle:shortVersionString>1.2.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>Updates kommen ab jetzt automatisch.
+
+Bisher hat InnoWhisper nur einmal pro Tag nach Updates geschaut und immer einen Dialog gezeigt. Mit dieser Version ändert sich das: die App prüft jetzt jede Stunde im Hintergrund, lädt neue Versionen still herunter und installiert sie automatisch, sobald du die App das nächste Mal beendest oder den Mac neu startest. Kein Klick mehr nötig.
+
+Dies ist das letzte Update, das du noch aktiv installieren musst. Ab v1.2.3 läuft alles im Hintergrund.</p>]]></description>
+      <enclosure
+        url="https://github.com/temutluer-glitch/whisperdictation/releases/download/v1.2.2/InnoWhisper-1.2.2.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="wmzMvqos3nMQTU7m37KcPnoBE+pI8hPZ/1UFanSg36HOWTfRYBWM9McPnpXwGdY+q+j9cVUwuXMyUSpDxG57Cg==" length="2525390" />
+    </item>
   </channel>
 </rss>

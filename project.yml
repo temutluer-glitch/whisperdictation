@@ -42,7 +42,9 @@ targets:
         SUPublicEDKey: "Em7ytxl6BZIiqy0vtdnlnIOan/WRv7vWPOI/CbmV/hE="
         SUEnableInstallerLauncherService: false
         SUEnableAutomaticChecks: ${WD_SPARKLE_ENABLED}
-        SUScheduledCheckInterval: 86400
+        SUScheduledCheckInterval: 3600
+        SUAutomaticallyDownloadUpdates: true
+        SUAllowsAutomaticUpdates: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ${WD_BUNDLE_ID}

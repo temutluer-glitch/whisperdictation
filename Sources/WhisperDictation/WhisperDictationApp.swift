@@ -35,9 +35,18 @@ final class AppServices: ObservableObject {
     let settingsStore = SettingsStore()
     let coordinator = DictationCoordinator()
     let history = TranscriptionHistory.shared
+    let onboarding: OnboardingController
 
     init() {
+        onboarding = OnboardingController(settingsStore: settingsStore)
         coordinator.attach(settingsStore: settingsStore, appState: appState)
+
+        // Beim ersten Start (oder solange das Onboarding nicht abgeschlossen ist)
+        // den Wizard zeigen. Verzögert, damit NSApp vollständig läuft.
+        let onboarding = self.onboarding
+        DispatchQueue.main.async {
+            onboarding.presentIfNeeded()
+        }
     }
 }
 
@@ -68,6 +77,7 @@ struct WhisperDictationApp: App {
                 .environmentObject(services.appState)
                 .environmentObject(services.history)
                 .environmentObject(updateController)
+                .environmentObject(services.onboarding)
                 .frame(minWidth: 680, minHeight: 520)
         }
     }
@@ -80,7 +90,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let trusted = AXIsProcessTrusted()
         DebugLog.write("launch bundlePath=\(bundlePath) axTrusted=\(trusted)")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            PermissionHelper.checkAccessibilityOnLaunch()
+            // Während des Onboardings übernimmt der Wizard den Bedienungshilfen-Schritt,
+            // daher hier keinen zusätzlichen Alert zeigen.
+            if UserDefaults.standard.bool(forKey: SettingsStore.onboardingDefaultsKey) {
+                PermissionHelper.checkAccessibilityOnLaunch()
+            }
         }
     }
 }

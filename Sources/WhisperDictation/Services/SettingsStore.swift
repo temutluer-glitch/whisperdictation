@@ -4,6 +4,10 @@ import SwiftUI
 
 @MainActor
 final class SettingsStore: ObservableObject {
+    /// UserDefaults-Key des Onboarding-Flags. Öffentlich und nonisolated, damit der
+    /// AppDelegate den Bedienungshilfen-Start-Alert während des Onboardings unterdrücken kann.
+    nonisolated static let onboardingDefaultsKey = "hasCompletedOnboarding"
+
     private enum Key {
         static let hotkeyBindings = "hotkeyBindings"
         static let legacyHotkeyConfig = "hotkeyConfig"
@@ -19,6 +23,7 @@ final class SettingsStore: ObservableObject {
         static let hasGroqKey = "hasGroqKey"
         static let customVocabulary = "customVocabulary"
         static let preferredInputDeviceID = "preferredInputDeviceID"
+        static let hasCompletedOnboarding = SettingsStore.onboardingDefaultsKey
     }
 
     @Published var hotkeyBindings: [HotkeyBinding] {
@@ -76,6 +81,11 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(preferredInputDeviceID, forKey: Key.preferredInputDeviceID) }
     }
 
+    /// `true`, sobald der Erst-Start-Onboarding-Wizard abgeschlossen (oder migriert) wurde.
+    @Published var hasCompletedOnboarding: Bool {
+        didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: Key.hasCompletedOnboarding) }
+    }
+
     func preset(for binding: HotkeyBinding) -> PromptPreset? {
         llmPresets.first(where: { $0.id == binding.presetID })
     }
@@ -123,9 +133,33 @@ final class SettingsStore: ObservableObject {
             self.hotkeyBindings = [HotkeyBinding(presetID: rawPreset.id, config: .defaultConfig, mode: .holdToTalk)]
         }
 
-        self.groqAPIKey = KeychainStore.get(KeychainStore.Account.groqAPIKey) ?? ""
+        let storedKey = KeychainStore.get(KeychainStore.Account.groqAPIKey) ?? ""
+        self.groqAPIKey = storedKey
         self.customVocabulary = defaults.string(forKey: Key.customVocabulary) ?? ""
         self.preferredInputDeviceID = defaults.string(forKey: Key.preferredInputDeviceID) ?? ""
+
+        // Onboarding-Flag. Wenn der Schlüssel bereits existiert, übernehmen wir ihn.
+        // Fehlt er, läuft die Migration: bestehende, bereits konfigurierte Nutzer
+        // (haben einen API-Key) gelten als fertig onboarded und sehen den Wizard
+        // nach einem Update nicht. Nur echte Erst-Nutzer ohne Key bekommen ihn.
+        if defaults.object(forKey: Key.hasCompletedOnboarding) != nil {
+            self.hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
+        } else {
+            let alreadyConfigured = !storedKey.isEmpty || defaults.bool(forKey: Key.hasGroqKey)
+            self.hasCompletedOnboarding = alreadyConfigured
+            defaults.set(alreadyConfigured, forKey: Key.hasCompletedOnboarding)
+        }
+    }
+
+    /// Setzt das Onboarding zurück, sodass der Wizard erneut erscheint
+    /// (Einstellungen → General → „Onboarding nochmal starten").
+    func resetOnboarding() {
+        hasCompletedOnboarding = false
+    }
+
+    /// Markiert das Onboarding als abgeschlossen.
+    func completeOnboarding() {
+        hasCompletedOnboarding = true
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

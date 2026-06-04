@@ -236,12 +236,27 @@ final class OnboardingController: NSObject, ObservableObject, NSWindowDelegate {
 
     /// Beendet die App und startet sie sofort neu. Nötig, damit TCC eine frisch
     /// erteilte Bedienungshilfen-Berechtigung zuverlässig mountet.
+    ///
+    /// Ein direktes `open -n` parallel zum laufenden Beenden schlägt fehl: LaunchServices
+    /// verwirft den Start einer neuen Instanz, solange dieselbe Bundle-ID noch terminiert.
+    /// Deshalb startet ein abgekoppelter Helper, der wartet, bis dieser Prozess wirklich
+    /// beendet ist, und erst dann die App neu öffnet.
     func relaunchApp() {
         let bundlePath = Bundle.main.bundlePath
+        let pid = ProcessInfo.processInfo.processIdentifier
+        // $1 = Bundle-Pfad (als Argument übergeben, damit Leerzeichen im Pfad sicher sind).
+        let script = "while /bin/kill -0 \(pid) >/dev/null 2>&1; do /bin/sleep 0.1; done; /usr/bin/open \"$1\""
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        task.arguments = ["-n", bundlePath]
-        try? task.run()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", script, "wd-relaunch", bundlePath]
+        do {
+            try task.run()
+        } catch {
+            // Helper konnte nicht starten: dann NICHT beenden, sonst bliebe die App
+            // weg ohne Neustart. Der Nutzer kann stattdessen manuell neu starten.
+            DebugLog.write("relaunch helper failed: \(error.localizedDescription)")
+            return
+        }
         NSApp.terminate(nil)
     }
 

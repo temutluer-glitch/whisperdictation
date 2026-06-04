@@ -564,26 +564,78 @@ private struct TestDictationStep: View {
 
 private struct DoneStep: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 18) {
             StepHeader(
                 icon: "sparkles",
                 title: "Alles bereit",
-                subtitle: "InnoWhisper läuft jetzt in deiner Menüleiste. Drück deinen Hotkey, wann immer du diktieren willst."
+                subtitle: "InnoWhisper läuft jetzt in deiner Menüleiste. Das sind die wichtigsten Funktionen, die du in den Einstellungen findest."
             )
 
-            VStack(alignment: .leading, spacing: 12) {
-                FeatureBullet(icon: "clock.arrow.circlepath", text: "History: alle Transkriptionen in den Einstellungen")
-                FeatureBullet(icon: "text.book.closed", text: "Eigenes Wörterbuch für Namen und Fachbegriffe")
-                FeatureBullet(icon: "arrow.down.circle", text: "Updates kommen automatisch über die Menüleiste")
+            VStack(alignment: .leading, spacing: 16) {
+                FeatureExplain(
+                    icon: "keyboard",
+                    title: "Mehrere Hotkeys",
+                    detail: "Lege beliebig viele Hotkeys an. Jeder startet eine Aufnahme, wahlweise als Hold-to-Talk (halten und sprechen) oder als Toggle (einmal an, einmal aus)."
+                )
+                FeatureExplain(
+                    icon: "sparkles",
+                    title: "Prompts & KI-Nachbearbeitung",
+                    detail: "Erstelle eigene Prompt-Presets wie „In Stichpunkte“ oder „Als E-Mail formulieren“ und verknüpfe jedes mit einem eigenen Hotkey. So bekommst du pro Taste einen anderen Schreibstil – oder „Raw“ für reinen, unbearbeiteten Text."
+                )
+                FeatureExplain(
+                    icon: "text.book.closed",
+                    title: "Eigenes Wörterbuch",
+                    detail: "Hinterlege Namen, Fachbegriffe und Abkürzungen, damit Whisper sie korrekt schreibt."
+                )
+                FeatureExplain(
+                    icon: "clock.arrow.circlepath",
+                    title: "Verlauf",
+                    detail: "Alle Transkriptionen werden gespeichert – Rohtext und nachbearbeitete Version zum Nachschlagen und Kopieren."
+                )
+                FeatureExplain(
+                    icon: "doc.on.clipboard",
+                    title: "Ausgabe",
+                    detail: "Den Text direkt in die aktive App einfügen oder nur in die Zwischenablage legen."
+                )
+                FeatureExplain(
+                    icon: "arrow.down.circle",
+                    title: "Automatische Updates",
+                    detail: "Neue Versionen installiert InnoWhisper automatisch über die Menüleiste."
+                )
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.08)))
 
-            Text("Du findest alle Einstellungen jederzeit über das Menüleisten-Symbol. Das Onboarding lässt sich dort unter „General“ erneut starten.")
+            Text("Du erreichst alles jederzeit über das Menüleisten-Symbol → Einstellungen (Tabs Hotkey, LLM Prompts, Transkription, History). Das Onboarding lässt sich dort unter „General“ erneut starten.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// Funktions-Zeile mit Icon, fettem Titel und erklärender Zeile (für die Fertig-Seite).
+private struct FeatureExplain: View {
+    let icon: String
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.tint)
+                .frame(width: 24, height: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .fontWeight(.semibold)
+                Text(detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
     }
 }

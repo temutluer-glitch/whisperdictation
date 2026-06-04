@@ -3,12 +3,26 @@ import SwiftUI
 struct GeneralSettingsView: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var updater: UpdateController
+    @EnvironmentObject private var onboarding: OnboardingController
 
     var body: some View {
         Form {
             Section("Verhalten") {
                 Toggle("Beim Login starten", isOn: $settings.launchAtLogin)
                 Toggle("Sounds bei Start/Stop", isOn: $settings.playSounds)
+            }
+
+            Section("Einrichtung") {
+                HStack {
+                    Text("Einrichtungs-Assistent")
+                    Spacer()
+                    Button("Onboarding nochmal starten") {
+                        onboarding.presentFromStart()
+                    }
+                }
+                Text("Führt dich erneut durch API-Key, Berechtigungen, Mikrofon, Hotkey und ein Test-Diktat.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Ausgabe") {

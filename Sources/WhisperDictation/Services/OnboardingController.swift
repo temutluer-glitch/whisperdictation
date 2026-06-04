@@ -69,6 +69,11 @@ final class OnboardingController: NSObject, ObservableObject, NSWindowDelegate {
 
     @Published var keyValidation: KeyValidation = .unknown
 
+    /// Einmalige Markierung: nach einem Relaunch aus dem Wizard heraus das Onboarding
+    /// fortsetzen, auch wenn es (z. B. bei manueller Wiederholung oder vorhandenem Key)
+    /// schon als abgeschlossen gilt.
+    private static let resumeDefaultsKey = "onboardingResumeAfterRelaunch"
+
     let settingsStore: SettingsStore
     let tester: OnboardingDictationTester
 
@@ -83,11 +88,16 @@ final class OnboardingController: NSObject, ObservableObject, NSWindowDelegate {
 
     // MARK: - Präsentation
 
-    /// Zeigt den Wizard beim App-Start, falls das Onboarding noch nicht abgeschlossen wurde.
+    /// Zeigt den Wizard beim App-Start, falls das Onboarding noch nicht abgeschlossen wurde
+    /// oder nach einem Relaunch aus dem Wizard heraus fortgesetzt werden soll.
     /// Springt per Skip-Logik direkt zum ersten noch offenen Schritt (z. B. nach einem
     /// Neustart wegen Bedienungshilfen direkt zur Mikrofon-Auswahl).
     func presentIfNeeded() {
-        guard !settingsStore.hasCompletedOnboarding else { return }
+        let resumeAfterRelaunch = UserDefaults.standard.bool(forKey: Self.resumeDefaultsKey)
+        if resumeAfterRelaunch {
+            UserDefaults.standard.removeObject(forKey: Self.resumeDefaultsKey)
+        }
+        guard !settingsStore.hasCompletedOnboarding || resumeAfterRelaunch else { return }
         present(resumingFromState: true)
     }
 
@@ -242,8 +252,15 @@ final class OnboardingController: NSObject, ObservableObject, NSWindowDelegate {
     /// Deshalb startet ein abgekoppelter Helper, der wartet, bis dieser Prozess wirklich
     /// beendet ist, und erst dann die App neu öffnet.
     func relaunchApp() {
+        // Nach dem Neustart soll der Wizard sicher wieder erscheinen und an der
+        // Mikrofon-Auswahl weitermachen, auch wenn das Onboarding schon als
+        // abgeschlossen gilt. Synchronize erzwingt das Flushen vor dem Beenden.
+        UserDefaults.standard.set(true, forKey: Self.resumeDefaultsKey)
+        UserDefaults.standard.synchronize()
+
         let bundlePath = Bundle.main.bundlePath
         let pid = ProcessInfo.processInfo.processIdentifier
+        DebugLog.write("onboarding relaunch requested bundle=\(bundlePath) pid=\(pid)")
         // $1 = Bundle-Pfad (als Argument übergeben, damit Leerzeichen im Pfad sicher sind).
         let script = "while /bin/kill -0 \(pid) >/dev/null 2>&1; do /bin/sleep 0.1; done; /usr/bin/open \"$1\""
         let task = Process()

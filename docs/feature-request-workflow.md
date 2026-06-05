@@ -124,9 +124,10 @@ Wenn Timur "jetzt releasen" sagt:
 2. Schlage Versionsnummer vor (Default: Patch-Bump). Timur kann Minor/Major überstimmen.
 3. Generiere deutsche Release-Notes (knapp, Feature-orientiert, eine Zeile pro Eintrag).
 4. Führe `scripts/release.sh <version> "<notes>"` auf `main` aus. Das erzeugt Tag, GitHub-Release, ZIP+DMG-Assets, signiert mit EdDSA, pusht den Appcast.
-5. Setze alle zugehörigen Notion-Einträge auf `Erledigt` und schreibe Release-Tag plus -URL in den Page-Body.
-6. Resette `beta` auf den frischen `main` und merge die noch verbleibenden `Human Review`-Branches neu rein. Erzeuge frischen Beta-Build.
-7. Lösche die gemergten Feature-Branches lokal und remote.
+5. Setze **alle** Notion-Einträge mit Status `Release` auf `Erledigt` (nicht nur die in diesem Release neu hinzugekommenen — alles, was auf `main` liegt, geht mit raus) und schreibe Release-Tag plus -URL in den jeweiligen Page-Body.
+6. Aktualisiere den **InnoWhisper-Installationsguide** in Notion (Page-ID `35623553-acb7-8175-afb4-d750db7f1363`): neue Versionsnummer und Download-Link plus alle UI-/Bedienungs-Änderungen aus diesem Release. Prüfe dabei den **gesamten** Guide auf veraltete oder für neue Nutzer irrelevante Inhalte (historische „ab Version X"-Hinweise, alte Migrations-/Cert-Wechsel-Troubleshooting, Vorgänger-App-Reste) und entferne sie. Der Guide bleibt so kurz und einfach wie möglich und für Non-Tech-Mitarbeiter verständlich (es gibt zusätzlich einen begleiteten Walkthrough).
+7. Resette `beta` auf den frischen `main` und merge die noch verbleibenden `Human Review`-Branches neu rein. Erzeuge frischen Beta-Build.
+8. Lösche die gemergten Feature-Branches lokal und remote.
 
 ## Konflikt-Handling
 

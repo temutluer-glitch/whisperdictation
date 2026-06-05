@@ -12,6 +12,9 @@ struct SettingsView: View {
             TranscriptionSettingsView()
                 .tabItem { Label("Transkription", systemImage: "waveform") }
 
+            VocabularySettingsView()
+                .tabItem { Label("Wörterbuch", systemImage: "character.book.closed") }
+
             LLMPromptsSettingsView()
                 .tabItem { Label("LLM Prompts", systemImage: "sparkles") }
 

@@ -6,8 +6,20 @@ struct HistoryView: View {
     @State private var selectedID: UUID?
     @State private var justCopiedID: UUID?
     @State private var expandedIDs: Set<UUID> = []
+    /// Im Popover ohne eigenes Padding (das Popover bringt sein eigenes mit),
+    /// damit der Verlauf bündig mit Status und Umschalter sitzt.
+    var compact: Bool = false
 
     var body: some View {
+        if compact {
+            historyStack
+        } else {
+            historyStack.padding()
+        }
+    }
+
+    @ViewBuilder
+    private var historyStack: some View {
         VStack(alignment: .leading) {
             HStack {
                 Text("Letzte \(history.entries.count) Transkriptionen")
@@ -40,9 +52,9 @@ struct HistoryView: View {
                         .tag(Optional(entry.id))
                     }
                 }
+                .scrollContentBackground(.hidden)
             }
         }
-        .padding()
     }
 
     private func toggleExpand(_ id: UUID) {

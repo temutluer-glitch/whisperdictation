@@ -3,39 +3,57 @@ import AppKit
 import Carbon.HIToolbox
 
 enum TextInjector {
-    static func inject(_ text: String, mode: OutputMode) {
+    static func inject(_ text: String, mode: OutputMode, target: NSRunningApplication?) {
         let pasteboard = NSPasteboard.general
         let trusted = AXIsProcessTrusted()
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
-        DebugLog.write("inject mode=\(mode.rawValue) axTrusted=\(trusted) frontApp=\(frontBundle) length=\(text.count)")
+        let targetBundle = target?.bundleIdentifier ?? "nil"
+        DebugLog.write("inject mode=\(mode.rawValue) axTrusted=\(trusted) frontApp=\(frontBundle) target=\(targetBundle) length=\(text.count)")
 
         if mode == .clipboardOnly {
-            pasteboard.clearContents()
-            let ok = pasteboard.setString(text, forType: .string)
-            DebugLog.write("inject clipboardOnly setString=\(ok)")
+            writeConcealed(text, to: pasteboard)
+            DebugLog.write("inject clipboardOnly written (concealed)")
             return
         }
 
         let snapshot = snapshotPasteboard(pasteboard)
+        writeConcealed(text, to: pasteboard)
 
-        pasteboard.clearContents()
-        let setOk = pasteboard.setString(text, forType: .string)
-        let readBack = pasteboard.string(forType: .string) ?? ""
-        DebugLog.write("inject setString=\(setOk) clipboardNow=\"\(readBack.prefix(40))\"")
-
-        let (downOk, upOk) = simulateCmdV()
-        DebugLog.write("inject simulateCmdV posted keyDown=\(downOk) keyUp=\(upOk)")
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            let afterFront = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
-            let afterClip = pasteboard.string(forType: .string) ?? ""
-            DebugLog.write("inject +150ms frontApp=\(afterFront) clipboardNow=\"\(afterClip.prefix(40))\"")
-        }
+        // Fokus auf die Ziel-App sicherstellen, dann einfügen (mit Wiederholungen,
+        // falls der Fokus noch nicht zurück ist).
+        pasteWithFocusRestore(target: target, attemptsLeft: 8)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
             restorePasteboard(pasteboard, snapshot: snapshot)
             DebugLog.write("inject snapshot restored")
         }
+    }
+
+    /// Schreibt Text in die Zwischenablage und markiert ihn als vertraulich
+    /// (org.nspasteboard.ConcealedType), damit Clipboard-History-Tools das Diktat
+    /// nicht mitspeichern.
+    private static func writeConcealed(_ text: String, to pasteboard: NSPasteboard) {
+        let item = NSPasteboardItem()
+        item.setString(text, forType: .string)
+        item.setData(Data([UInt8(1)]), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+        pasteboard.clearContents()
+        pasteboard.writeObjects([item])
+    }
+
+    /// Aktiviert die Ziel-App falls nötig und postet dann Cmd+V. Solange die
+    /// Ziel-App nicht im Vordergrund ist, wird kurz gewartet und erneut versucht,
+    /// damit der Text zuverlässig im richtigen Feld landet.
+    private static func pasteWithFocusRestore(target: NSRunningApplication?, attemptsLeft: Int) {
+        if let target, attemptsLeft > 0,
+           NSWorkspace.shared.frontmostApplication?.processIdentifier != target.processIdentifier {
+            target.activate()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                pasteWithFocusRestore(target: target, attemptsLeft: attemptsLeft - 1)
+            }
+            return
+        }
+        let (downOk, upOk) = simulateCmdV()
+        DebugLog.write("inject simulateCmdV keyDown=\(downOk) keyUp=\(upOk)")
     }
 
     private struct PasteboardSnapshot {

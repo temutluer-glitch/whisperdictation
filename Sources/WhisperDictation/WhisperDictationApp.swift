@@ -58,19 +58,24 @@ struct WhisperDictationApp: App {
     @StateObject private var axTrust = AccessibilityTrustObserver()
 
     var body: some Scene {
+        // Menüleisten-Popover über SwiftUIs MenuBarExtra (window-Style). Dadurch
+        // ist die App Teil des SwiftUI-Scene-Graphen, sodass SettingsLink das
+        // native Einstellungsfenster zuverlässig öffnet.
         MenuBarExtra {
-            MenuContent()
+            MenuPopoverView()
                 .environmentObject(services.appState)
                 .environmentObject(services.settingsStore)
                 .environmentObject(services.coordinator)
+                .environmentObject(services.history)
                 .environmentObject(updateController)
                 .environmentObject(axTrust)
         } label: {
-            Image(systemName: services.appState.menuBarIconName)
-                .symbolRenderingMode(.hierarchical)
+            MenuBarLabel(appState: services.appState)
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
 
+        // Native Settings-Scene = vertraute Preferences-Optik. Der onAppear-Block
+        // holt das Fenster zuverlässig in den Vordergrund (behebt Punkt 3).
         Settings {
             SettingsView()
                 .environmentObject(services.settingsStore)
@@ -79,6 +84,30 @@ struct WhisperDictationApp: App {
                 .environmentObject(updateController)
                 .environmentObject(services.onboarding)
                 .frame(minWidth: 680, minHeight: 520)
+                .onAppear {
+                    NSApp.activate(ignoringOtherApps: true)
+                    DispatchQueue.main.async {
+                        for window in NSApp.windows where window.identifier?.rawValue.contains("Settings") == true {
+                            window.makeKeyAndOrderFront(nil)
+                            window.orderFrontRegardless()
+                        }
+                    }
+                }
+        }
+    }
+}
+
+/// Menüleisten-Icon: InnoSolv-Ringmarke im Ruhezustand (Branding), klare
+/// Status-Symbole während Aufnahme/Verarbeitung/Fehler.
+struct MenuBarLabel: View {
+    @ObservedObject var appState: AppState
+
+    var body: some View {
+        if appState.status == .idle {
+            Image("InnosolvMenuBar")
+        } else {
+            Image(systemName: appState.menuBarIconName)
+                .symbolRenderingMode(.hierarchical)
         }
     }
 }
@@ -95,65 +124,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if UserDefaults.standard.bool(forKey: SettingsStore.onboardingDefaultsKey) {
                 PermissionHelper.checkAccessibilityOnLaunch()
             }
-        }
-    }
-}
-
-struct MenuContent: View {
-    @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var coordinator: DictationCoordinator
-    @EnvironmentObject private var updater: UpdateController
-    @EnvironmentObject private var axTrust: AccessibilityTrustObserver
-
-    var body: some View {
-        if !axTrust.isTrusted {
-            Button("Bedienungshilfen fehlen, hier öffnen") {
-                axTrust.openAccessibilitySettings()
-            }
-            Divider()
-        }
-
-        Text(statusLine)
-            .font(.system(.body, design: .rounded))
-
-        Divider()
-
-        Button(appState.isRecording ? "Aufnahme stoppen" : "Aufnahme starten") {
-            coordinator.toggleRecording()
-        }
-        .keyboardShortcut("r")
-
-        if !appState.lastTranscription.isEmpty {
-            Divider()
-            Text("Letzte: \(String(appState.lastTranscription.prefix(60)))")
-                .font(.caption)
-        }
-
-        Divider()
-
-        SettingsLink {
-            Text("Einstellungen…")
-        }
-        .keyboardShortcut(",")
-
-        Button("Auf Updates prüfen…") {
-            updater.checkForUpdates()
-        }
-        .disabled(!updater.canCheckForUpdates)
-
-        Button("Beenden") {
-            NSApp.terminate(nil)
-        }
-        .keyboardShortcut("q")
-    }
-
-    private var statusLine: String {
-        switch appState.status {
-        case .idle: return "Bereit"
-        case .recording: return "Nimmt auf…"
-        case .transcribing: return "Transkribiere…"
-        case .processing: return "Verarbeite mit LLM…"
-        case .error(let msg): return "Fehler: \(msg)"
         }
     }
 }

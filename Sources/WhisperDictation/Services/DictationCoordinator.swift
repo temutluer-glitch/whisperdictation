@@ -14,6 +14,9 @@ final class DictationCoordinator: ObservableObject {
     private var appState: AppState?
     private var cancellables = Set<AnyCancellable>()
     private var activeBindingID: UUID?
+    /// Die App, die beim Aufnahmestart fokussiert war. Dorthin wird der Text
+    /// eingefügt, auch wenn der Fokus während der Aufnahme weggewandert ist.
+    private var pasteTargetApp: NSRunningApplication?
 
     private static let hallucinationPhrases: Set<String> = [
         "thank you", "thank you.", "thanks", "thanks.", "thanks for watching",
@@ -68,7 +71,9 @@ final class DictationCoordinator: ObservableObject {
         guard !appState.isRecording else { return }
 
         activeBindingID = bindingID
-        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "nil"
+        let frontApp = NSWorkspace.shared.frontmostApplication
+        pasteTargetApp = frontApp
+        let front = frontApp?.bundleIdentifier ?? "nil"
         DebugLog.write("hotkeyPress frontApp=\(front) binding=\(bindingID.uuidString.prefix(8))")
 
         let preferredDeviceID = settingsStore?.preferredInputDeviceID ?? ""
@@ -142,7 +147,7 @@ final class DictationCoordinator: ObservableObject {
                 try? FileManager.default.removeItem(at: stopResult.url)
 
                 let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                if Self.isLikelyHallucination(trimmed) {
+                if Self.isLikelyHallucination(trimmed, durationSeconds: stopResult.durationSeconds) {
                     overlay.hide()
                     appState.status = .idle
                     activeBindingID = nil
@@ -162,7 +167,7 @@ final class DictationCoordinator: ObservableObject {
                 appState.lastTranscription = final
                 history.add(HistoryEntry(rawText: trimmed, processedText: final, presetName: presetName))
                 overlay.hide()
-                TextInjector.inject(final, mode: outputMode)
+                TextInjector.inject(final, mode: outputMode, target: pasteTargetApp)
 
                 appState.status = .idle
                 activeBindingID = nil
@@ -185,12 +190,22 @@ final class DictationCoordinator: ObservableObject {
         return terms.joined(separator: ", ")
     }
 
-    private static func isLikelyHallucination(_ text: String) -> Bool {
+    private static func isLikelyHallucination(_ text: String, durationSeconds: Double) -> Bool {
         let normalized = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
         if normalized.isEmpty { return true }
         if hallucinationPhrases.contains(normalized) { return true }
         let collapsed = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         if hallucinationPhrases.contains(collapsed) { return true }
+
+        // Heuristik: ungewöhnlich viel Text aus sehr kurzem Audio ist fast immer
+        // eine Whisper-Halluzination (z.B. auf Stille). Bewusst konservativ
+        // (hohe Schwelle), damit echte, schnell gesprochene Diktate nicht
+        // fälschlich verworfen werden.
+        let charCount = text.count
+        if durationSeconds > 0, charCount > 50 {
+            let charsPerSecond = Double(charCount) / durationSeconds
+            if charsPerSecond > 30 { return true }
+        }
         return false
     }
 

@@ -84,5 +84,22 @@ Dies ist das letzte Update, das du noch aktiv installieren musst. Ab v1.2.3 läu
         type="application/octet-stream"
         sparkle:edSignature="wmzMvqos3nMQTU7m37KcPnoBE+pI8hPZ/1UFanSg36HOWTfRYBWM9McPnpXwGdY+q+j9cVUwuXMyUSpDxG57Cg==" length="2525390" />
     </item>
+    <item>
+      <title>Version 1.2.3</title>
+      <pubDate>Fri, 05 Jun 2026 07:42:19 +0000</pubDate>
+      <sparkle:version>63</sparkle:version>
+      <sparkle:shortVersionString>1.2.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>- Neues Menüleisten-Popover für Schnellzugriff auf Verlauf und Wörterbuch
+- Aufgeräumte Einstellungen mit eigenem Wörterbuch-Tab; Einstellungsfenster öffnet zuverlässig im Vordergrund
+- InnoSolv-Logo als Menüleisten-Icon
+- Wörterbuch als Chip-Editor (Eigennamen als Kapseln)
+- Zuverlässigeres Einfügen und weniger Fehlausgaben bei Stille
+- Diktate landen nicht mehr in Clipboard-Verlaufs-Tools</p>]]></description>
+      <enclosure
+        url="https://github.com/temutluer-glitch/whisperdictation/releases/download/v1.2.3/InnoWhisper-1.2.3.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="KKHFj1J8TAORkHIgYp7+9KFwXUJRPrqTLhQCp9wf/kqrItUHEnhgxYXRBxC2RYE002tSFNsI3i9lpoYGM8lsDA==" length="2743476" />
+    </item>
   </channel>
 </rss>
